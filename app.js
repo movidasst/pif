@@ -378,6 +378,157 @@ function showNewCase() {
 }
 $('#new-case-button').addEventListener('click', showNewCase);
 
+$('#demo-case-button').addEventListener('click', createDemoCase);
+
+async function createDemoCase() {
+  if (!state.session) return showLogin();
+
+  const existing = state.cases.find(c => c.codigo_interno === 'DEMO-EI3646-HERRAMIENTA');
+  if (existing) {
+    await openCase(existing.id);
+    toast('El caso DEMO ya existe. Lo abrí para continuar la prueba.');
+    return;
+  }
+
+  const button = $('#demo-case-button');
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Creando DEMO…';
+
+  let demoCaseId = null;
+
+  try {
+    const createdCase = await supabase.from('pif_casos').insert({
+      tipo: 'aprendizaje',
+      titulo: 'DEMO · Herramienta que cae desde altura',
+      codigo_interno: 'DEMO-EI3646-HERRAMIENTA',
+      empresa: 'Caso de aprendizaje EI 3646',
+      centro_trabajo: 'Escenario de práctica',
+      area: 'Mantenimiento',
+      actividad: 'Trabajo en altura / mantenimiento',
+      tipo_evento: 'Caída de objeto',
+      consecuencia: 'Caso de aprendizaje, sin consecuencia real',
+      gravedad: 'Simulación',
+      descripcion: 'Caso de aprendizaje basado en el ejemplo utilizado por EI 3646 para mostrar la relación entre barrera, acción observada y factores que influyen en el desempeño. No corresponde a un accidente real.',
+      estado: 'en_analisis'
+    }).select('*').single();
+
+    if (createdCase.error) throw createdCase.error;
+    demoCaseId = createdCase.data.id;
+
+    const finding = await supabase.from('pif_hallazgos').insert({
+      caso_id: demoCaseId,
+      tipo: 'accion',
+      descripcion_observable: 'Durante el trabajo en altura, la herramienta fue guardada en el bolsillo trasero en lugar de mantenerse asegurada dentro de la bolsa de herramientas cerrada.',
+      notas: 'En este ejercicio la acción se registra de forma observable, sin etiquetarla como acto inseguro, negligencia o causa raíz.',
+      orden: 1
+    }).select('*').single();
+    if (finding.error) throw finding.error;
+
+    const barrier = await supabase.from('pif_barreras').insert({
+      hallazgo_id: finding.data.id,
+      relacion: 'si',
+      tipo: 'Protección física',
+      descripcion: 'Mantener la herramienta asegurada dentro de una bolsa de herramientas cerrada durante el trabajo en altura.',
+      estado: 'no_utilizada'
+    });
+    if (barrier.error) throw barrier.error;
+
+    const evidence = await supabase.from('pif_evidencias').insert([
+      {
+        caso_id: demoCaseId,
+        hallazgo_id: finding.data.id,
+        tipo: 'Entrevista',
+        titulo: 'Evidencia DEMO · Tiempo disponible',
+        aporte: 'Para fines del ejercicio se considera confirmado que guardar la herramienta en el bolsillo era percibido como más rápido que abrir y cerrar repetidamente la bolsa de herramientas.',
+        fuente_texto: 'Caso de aprendizaje basado en el ejemplo de EI 3646',
+        proveedor_archivo: 'sin_archivo',
+        estado_archivo: 'sin_archivo'
+      },
+      {
+        caso_id: demoCaseId,
+        hallazgo_id: finding.data.id,
+        tipo: 'Documento',
+        titulo: 'Evidencia DEMO · Mensajes del liderazgo',
+        aporte: 'Para fines del ejercicio se considera documentado que existían mensajes de liderazgo que enfatizaban completar el proyecto dentro del tiempo previsto.',
+        fuente_texto: 'Caso de aprendizaje basado en el ejemplo de EI 3646',
+        proveedor_archivo: 'sin_archivo',
+        estado_archivo: 'sin_archivo'
+      }
+    ]).select('*');
+    if (evidence.error) throw evidence.error;
+
+    const timeEvidence = evidence.data.find(e => e.titulo.includes('Tiempo disponible'));
+    const leadershipEvidence = evidence.data.find(e => e.titulo.includes('Mensajes del liderazgo'));
+
+    const timeFactor = await supabase.from('pif_hallazgo_factores').insert({
+      hallazgo_id: finding.data.id,
+      pif_codigo: 'T.2',
+      subfactor_codigo: 'T.2.1',
+      respaldo: 'confirmado',
+      justificacion: 'La investigación del caso de aprendizaje vincula directamente la acción observada con la percepción de disponer de poco tiempo para completar la tarea.',
+      confirmado_at: new Date().toISOString()
+    }).select('*').single();
+    if (timeFactor.error) throw timeFactor.error;
+
+    const leadershipFactor = await supabase.from('pif_hallazgo_factores').insert({
+      hallazgo_id: finding.data.id,
+      pif_codigo: 'O.3',
+      subfactor_codigo: 'O.3.2',
+      respaldo: 'confirmado',
+      justificacion: 'El caso de aprendizaje incluye mensajes del liderazgo relacionados con completar el proyecto dentro del plazo, vinculados explícitamente con el contexto de la acción.',
+      confirmado_at: new Date().toISOString()
+    }).select('*').single();
+    if (leadershipFactor.error) throw leadershipFactor.error;
+
+    const links = await supabase.from('pif_factor_evidencias').insert([
+      { factor_id: timeFactor.data.id, evidencia_id: timeEvidence.id },
+      { factor_id: leadershipFactor.data.id, evidencia_id: leadershipEvidence.id }
+    ]);
+    if (links.error) throw links.error;
+
+    const interventions = await supabase.from('pif_intervenciones').insert([
+      {
+        caso_id: demoCaseId,
+        hallazgo_id: finding.data.id,
+        pif_codigo: 'T.2',
+        titulo: 'Revisar planificación y tiempo disponible',
+        descripcion: 'Verificar que la planificación de tareas en altura contemple tiempo suficiente para utilizar de forma consistente el sistema previsto de aseguramiento de herramientas.',
+        nivel: 'tarea',
+        responsable: 'Responsable del ejercicio',
+        indicador: 'Tareas críticas revisadas con tiempo operativo suficiente',
+        estado: 'pendiente'
+      },
+      {
+        caso_id: demoCaseId,
+        hallazgo_id: finding.data.id,
+        pif_codigo: 'O.3',
+        titulo: 'Revisar mensajes operacionales del liderazgo',
+        descripcion: 'Asegurar que las comunicaciones sobre plazos no generen señales contradictorias con el uso de barreras y controles de seguridad.',
+        nivel: 'organizacional',
+        responsable: 'Responsable del ejercicio',
+        indicador: 'Mensajes operacionales revisados y alineados con controles críticos',
+        estado: 'pendiente'
+      }
+    ]);
+    if (interventions.error) throw interventions.error;
+
+    await loadCases();
+    await openCase(demoCaseId);
+    toast('Caso DEMO creado. Ya tiene hallazgo, barrera, evidencias, PIF e intervenciones. Solo falta probar un archivo real.');
+  } catch (error) {
+    console.error(error);
+    if (demoCaseId) {
+      await supabase.from('pif_casos').delete().eq('id', demoCaseId);
+    }
+    toast(error.message || 'No fue posible crear el caso DEMO.');
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+
 async function createCase() {
   const button = $('#case-save');
   const titulo = $('#case-title').value.trim();
@@ -461,6 +612,7 @@ function renderCaseWorkspace() {
         </div>
         <div class="actions">
           <button class="btn teal" type="button" id="add-finding">+ Agregar hallazgo</button>
+          ${c.codigo_interno === 'DEMO-EI3646-HERRAMIENTA' ? '<button class="btn demo" type="button" id="demo-upload">📎 Probar archivo</button>' : ''}
           ${c.estado !== 'cerrado' ? '<button class="btn secondary" type="button" id="close-case">Cerrar análisis</button>' : ''}
         </div>
       </div>
@@ -472,6 +624,16 @@ function renderCaseWorkspace() {
   `;
 
   $('#add-finding')?.addEventListener('click', showAddFinding);
+  $('#demo-upload')?.addEventListener('click', () => {
+    const firstFinding = state.detail?.hallazgos?.[0];
+    if (!firstFinding) return toast('El caso DEMO no tiene hallazgo disponible.');
+    showAddEvidence(firstFinding.id);
+    $('#evidence-type').value = 'Fotografía';
+    $('#evidence-title').value = 'Archivo de prueba de Google Drive';
+    $('#evidence-contribution').value = 'Archivo utilizado únicamente para comprobar la carga de evidencias de PIF-SST hacia Google Drive.';
+    $('#evidence-source').value = 'Prueba de funcionamiento PIF-SST';
+    toast('Solo selecciona un archivo menor de 5 MB y pulsa Guardar evidencia.');
+  });
   $('#close-case')?.addEventListener('click', closeCase);
   $$('[data-add-barrier]').forEach(btn => btn.addEventListener('click', () => showAddBarrier(btn.dataset.addBarrier)));
   $$('[data-add-evidence]').forEach(btn => btn.addEventListener('click', () => showAddEvidence(btn.dataset.addEvidence)));
