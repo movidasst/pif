@@ -43,7 +43,8 @@ const state = {
   simulatorStages: [],
   simulatorAttempt: null,
   simulatorSelected: null,
-  simulatorFeedback: null
+  simulatorFeedback: null,
+  simulatorCalibration: []
 };
 
 const $ = selector => document.querySelector(selector);
@@ -1580,6 +1581,7 @@ async function startSimulatorCase(caseId) {
   state.simulatorStages = stagesRes.data || [];
   state.simulatorSelected = null;
   state.simulatorFeedback = null;
+  await loadSimulatorCalibration(caseId);
 
   const active = state.simulatorAttempts.find(a => a.simulador_caso_id === caseId && a.estado === 'en_progreso');
   if (active) {
@@ -1684,6 +1686,7 @@ function renderSimulatorWorkspace() {
               <strong>${feedback.correct ? 'Criterio alineado' : 'Revisa el criterio'}</strong>
               <p>${esc(content.explanation)}</p>
             </div>
+            ${renderCalibration(currentNumber, content, feedback)}
             <div class="actions">
               <button class="btn primary" id="sim-next" type="button">${currentNumber === stages.length ? 'Ver resultado' : 'Continuar →'}</button>
             </div>
@@ -1774,6 +1777,7 @@ async function continueSimulator() {
     if (i >= 0) state.simulatorAttempts[i] = finalRes.data;
     state.simulatorSelected = null;
     state.simulatorFeedback = null;
+    await loadSimulatorCalibration(attempt.simulador_caso_id);
     renderSimulatorResult();
     renderSimulatorCases();
     return;
@@ -1815,6 +1819,10 @@ function renderSimulatorResult() {
         <span class="eyebrow">Resultado del laboratorio</span>
         <h2>${esc(level)}</h2>
         <p>Completaste <strong>${esc(c.titulo)}</strong>. El resultado no representa una certificación ni una calificación profesional; sirve para practicar consistencia en la forma de documentar y clasificar.</p>
+        <div class="sim-result-callout">
+          <strong>Calibración entre analistas</strong>
+          <span>Cuando existe una muestra mínima, puedes comparar tus selecciones con la distribución anónima del grupo. La mayoría no sustituye el criterio técnico ni la evidencia.</span>
+        </div>
         <div class="sim-result-grid">
           ${state.simulatorStages.map(s => {
             const a = responses[String(s.numero)];
@@ -1841,6 +1849,7 @@ function renderSimulatorResult() {
     state.simulatorAttempts.unshift(created.data);
     state.simulatorSelected = null;
     state.simulatorFeedback = null;
+    await loadSimulatorCalibration(c.id);
     renderSimulatorWorkspace();
   });
 
