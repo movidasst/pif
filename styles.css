@@ -1028,3 +1028,152 @@ button,input,select,textarea{font-family:inherit}
   .brand-logo{width:56px;height:56px}
   .view-banner:after,.simulator-hero:after{width:132px;height:132px;right:4px;bottom:-28px;opacity:.1}
 }
+
+
+/* ===== Acceso de integrante · estilo común Movida de SST+ ===== */
+.login-modal{
+  width:min(500px,100%);
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(0,32,91,.08);
+  border-radius:24px;
+  box-shadow:0 34px 100px rgba(0,32,91,.28);
+}
+.login-modal .modal-head{
+  position:relative;
+  margin:0;
+  padding:22px 24px 18px;
+  background:linear-gradient(135deg,#001c4d 0%,#003c72 62%,#007b85 130%);
+  color:white;
+}
+.login-modal .modal-head:after{
+  content:"";
+  position:absolute;
+  width:145px;
+  height:145px;
+  right:-58px;
+  top:-58px;
+  border-radius:50%;
+  background:rgba(64,235,236,.13);
+  pointer-events:none;
+}
+.login-modal .modal-head .eyebrow{
+  color:#70f1f2;
+  font-size:.66rem;
+  letter-spacing:.12em;
+}
+.login-modal .modal-head h2{
+  margin-top:5px;
+  color:white;
+  font-size:1.65rem;
+  font-weight:900;
+  letter-spacing:-.025em;
+}
+.login-modal .icon-button{
+  position:relative;
+  z-index:2;
+  color:white;
+  background:rgba(255,255,255,.1);
+  border-color:rgba(255,255,255,.18);
+}
+.login-modal #modal-body{
+  padding:22px 24px 24px;
+  background:
+    radial-gradient(circle at 95% 0,rgba(8,205,208,.08),transparent 14rem),
+    white;
+}
+.access-brand-panel{
+  display:grid;
+  justify-items:center;
+  text-align:center;
+  margin-bottom:18px;
+}
+.access-logo-wrap{
+  position:relative;
+  width:106px;
+  height:106px;
+  display:grid;
+  place-items:center;
+  margin-top:-6px;
+}
+.access-logo-wrap:before{
+  content:"";
+  position:absolute;
+  inset:5px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(65,236,237,.24),rgba(0,123,133,.08) 55%,transparent 72%);
+}
+.access-logo-wrap img{
+  position:relative;
+  z-index:1;
+  width:94px;
+  height:94px;
+  object-fit:contain;
+  border-radius:50%;
+  filter:drop-shadow(0 10px 18px rgba(0,32,91,.22));
+}
+.access-brand-panel p{
+  max-width:390px;
+  margin:10px 0 0;
+  color:#607087;
+  font-size:.82rem;
+  line-height:1.55;
+}
+.access-form{
+  display:grid;
+  gap:12px;
+}
+.access-field{
+  display:grid;
+  gap:6px;
+}
+.access-field span{
+  color:var(--navy);
+  font-size:.76rem;
+  font-weight:800;
+}
+.access-field input,
+.access-field select{
+  min-height:48px;
+  border-radius:12px;
+  border:1px solid #d8e3ec;
+  background:#fbfdff;
+  font-size:.88rem;
+}
+.access-field input:focus,
+.access-field select:focus{
+  background:white;
+  border-color:#3dbec4;
+  box-shadow:0 0 0 4px rgba(0,123,133,.09);
+}
+.access-submit{
+  width:100%;
+  min-height:50px;
+  margin-top:3px;
+  border-radius:12px;
+  font-size:.86rem;
+  font-weight:900;
+  background:linear-gradient(180deg,#0b8790,#007b85)!important;
+  box-shadow:0 11px 24px rgba(0,123,133,.18);
+}
+.access-register{
+  margin:2px 0 0;
+  text-align:center;
+  color:#718096;
+  font-size:.72rem;
+  line-height:1.45;
+}
+.access-register a{
+  color:var(--teal);
+  font-weight:900;
+  text-decoration:none;
+}
+.access-register a:hover{text-decoration:underline}
+
+@media(max-width:560px){
+  .login-modal{border-radius:18px}
+  .login-modal .modal-head{padding:19px 18px 15px}
+  .login-modal #modal-body{padding:18px}
+  .access-logo-wrap{width:92px;height:92px}
+  .access-logo-wrap img{width:82px;height:82px}
+}
