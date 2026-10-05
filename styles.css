@@ -931,3 +931,100 @@ button,input,select,textarea{font-family:inherit}
   .hero-float-card span{font-size:1rem}
   .hero-float-card small{font-size:.52rem}
 }
+
+
+/* ===== Logo oficial de La Movida de SST+ en toda la aplicación ===== */
+.brand-rich{
+  position:relative;
+  padding:4px 10px 4px 5px;
+  border-radius:18px;
+}
+.brand-rich:before{
+  content:"";
+  position:absolute;
+  left:-2px;
+  top:50%;
+  width:76px;
+  height:76px;
+  transform:translateY(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(62,238,239,.24) 0%,rgba(0,123,133,.1) 48%,transparent 72%);
+  pointer-events:none;
+}
+.brand-logo{
+  position:relative;
+  z-index:1;
+  width:70px;
+  height:70px;
+  object-fit:contain;
+  border-radius:50%;
+  filter:drop-shadow(0 9px 16px rgba(0,32,91,.24));
+  transition:transform .25s ease,filter .25s ease;
+}
+.brand-rich:hover .brand-logo{
+  transform:scale(1.045) rotate(-1deg);
+  filter:drop-shadow(0 12px 22px rgba(0,123,133,.28));
+}
+.brand-copy{position:relative;z-index:1}
+.brand-copy strong{font-weight:900;letter-spacing:-.035em}
+.brand-copy small{letter-spacing:.105em}
+
+.hero-main-logo{
+  border-radius:50%;
+  filter:
+    drop-shadow(0 28px 42px rgba(0,0,0,.27))
+    drop-shadow(0 0 24px rgba(38,232,234,.18));
+}
+.hero-logo-halo{
+  width:74%;
+  background:
+    radial-gradient(circle,rgba(79,244,244,.34) 0%,rgba(8,205,208,.18) 43%,rgba(0,62,91,.03) 64%,transparent 75%);
+}
+
+.view-banner:after,
+.simulator-hero:after{
+  content:"";
+  position:absolute;
+  z-index:0;
+  width:190px;
+  height:190px;
+  right:22px;
+  bottom:-42px;
+  border-radius:50%;
+  background:url("https://raw.githubusercontent.com/movidasst/principal/main/logo-oficial-movida-sst-plus.png") center/contain no-repeat;
+  opacity:.13;
+  filter:drop-shadow(0 12px 28px rgba(0,0,0,.18));
+  pointer-events:none;
+}
+.view-banner > *,
+.simulator-hero > *{
+  position:relative;
+  z-index:1;
+}
+.rich-gate{
+  position:relative;
+  overflow:hidden;
+}
+.rich-gate:after{
+  content:"";
+  position:absolute;
+  width:150px;
+  height:150px;
+  right:-36px;
+  bottom:-36px;
+  background:url("https://raw.githubusercontent.com/movidasst/principal/main/logo-oficial-movida-sst-plus.png") center/contain no-repeat;
+  opacity:.055;
+  pointer-events:none;
+}
+.footer-brand img{
+  width:60px;
+  height:60px;
+  object-fit:contain;
+  border-radius:50%;
+  filter:drop-shadow(0 8px 15px rgba(0,0,0,.25));
+}
+@media(max-width:600px){
+  .brand-rich:before{width:60px;height:60px}
+  .brand-logo{width:56px;height:56px}
+  .view-banner:after,.simulator-hero:after{width:132px;height:132px;right:4px;bottom:-28px;opacity:.1}
+}
