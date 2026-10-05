@@ -44,7 +44,11 @@ const state = {
   simulatorAttempt: null,
   simulatorSelected: null,
   simulatorFeedback: null,
-  simulatorCalibration: []
+  simulatorCalibration: [],
+  access: null,
+  isAdmin: false,
+  adminAccessRows: [],
+  adminSearchRows: []
 };
 
 const $ = selector => document.querySelector(selector);
@@ -63,6 +67,69 @@ function fmtDate(value) {
   try { return new Date(value + (String(value).length === 10 ? 'T12:00:00' : '')).toLocaleDateString('es'); }
   catch { return value; }
 }
+
+function hasFullAccess() {
+  return Boolean(state.isAdmin || (state.access?.activo && state.access?.nivel === 'completo'));
+}
+
+function accessLabel() {
+  if (state.isAdmin) return 'Administrador';
+  if (state.access?.nivel === 'completo' && state.access?.activo) return 'Acceso completo';
+  return 'Acceso gratuito';
+}
+
+async function loadAccessStatus() {
+  if (!state.session) {
+    state.access = null;
+    state.isAdmin = false;
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('pif_ensure_access');
+  if (error) {
+    console.error(error);
+    state.access = null;
+    state.isAdmin = false;
+    return;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  state.access = row || null;
+  state.isAdmin = Boolean(row?.es_admin);
+}
+
+function paidGateMarkup(featureName, description) {
+  const pending = state.access?.solicitud_pago === 'pendiente';
+  return `
+    <div class="access-plan-card">
+      <div class="access-plan-icon">+</div>
+      <span class="eyebrow">Acceso completo</span>
+      <h2>${esc(featureName)}</h2>
+      <p>${esc(description)}</p>
+      <div class="access-plan-features">
+        <span>Tu credencial ya te da acceso gratuito a Taxonomía y Simulador.</span>
+        <span>Este módulo requiere habilitación de acceso completo.</span>
+      </div>
+      ${pending
+        ? '<div class="access-request-state">Solicitud enviada · pendiente de aprobación</div>'
+        : '<button class="btn primary request-full-access" type="button">Solicitar acceso completo</button>'}
+    </div>
+  `;
+}
+
+async function requestFullAccess() {
+  if (!state.session) return showLogin();
+  const { data, error } = await supabase.rpc('pif_request_paid_access');
+  if (error) {
+    console.error(error);
+    return toast('No fue posible enviar la solicitud.');
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  state.access = { ...state.access, ...row };
+  renderAccount();
+  toast(state.access?.nivel === 'completo' ? 'Ya tienes acceso completo.' : 'Solicitud enviada para aprobación.');
+}
+
 function toast(message) {
   const el = $('#toast');
   el.textContent = message;
@@ -89,8 +156,8 @@ function showView(name) {
   $$('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
   history.replaceState(null, '', '#' + name);
   if (name === 'casos') {
-    if (state.session) loadCases();
     renderCasesGate();
+    if (state.session && hasFullAccess()) loadCases();
   }
   if (name === 'simulador') {
     renderSimulatorGate();
@@ -98,11 +165,18 @@ function showView(name) {
   }
   if (name === 'preventivo') {
     renderPreventiveGate();
-    if (state.session) loadPreventives();
+    if (state.session && hasFullAccess()) loadPreventives();
   }
   if (name === 'analitica') {
     renderAnalyticsGate();
-    if (state.session) loadAnalytics();
+    if (state.session && hasFullAccess()) loadAnalytics();
+  }
+  if (name === 'admin') {
+    if (!state.isAdmin) {
+      toast('Acceso de administrador requerido.');
+      return showView('inicio');
+    }
+    loadAdminAccess();
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -194,19 +268,58 @@ function renderAccount() {
     const meta = state.session.user?.user_metadata || {};
     const label = [meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Mi cuenta';
     button.textContent = label.length > 20 ? label.slice(0, 18) + '…' : label;
+    button.title = accessLabel();
   } else {
     button.textContent = 'Ingresar';
+    button.title = '';
   }
+
+  const adminNav = $('#admin-nav');
+  if (adminNav) adminNav.hidden = !state.isAdmin;
+
   renderCasesGate();
   renderSimulatorGate();
   renderPreventiveGate();
   renderAnalyticsGate();
 }
 
+function bindRequestButtons() {
+  $('.request-full-access').forEach(btn => btn.addEventListener('click', requestFullAccess));
+}
+
 function renderCasesGate() {
   const logged = Boolean(state.session);
-  $('#cases-gate').hidden = logged;
-  $('#cases-area').hidden = !logged;
+  const gate = $('#cases-gate');
+  const area = $('#cases-area');
+  if (!gate || !area) return;
+
+  if (!logged) {
+    gate.hidden = false;
+    area.hidden = true;
+    gate.innerHTML = `
+      <div class="gate-icon">▤</div>
+      <span class="eyebrow">Acceso de integrante</span>
+      <h2>Mis análisis PIF-SST</h2>
+      <p>Ingresa con tu cédula y código de integrante para continuar.</p>
+      <button class="btn primary" type="button" id="gate-login-dynamic">Ingresar</button>
+    `;
+    $('#gate-login-dynamic')?.addEventListener('click', showLogin);
+    return;
+  }
+
+  if (!hasFullAccess()) {
+    gate.hidden = false;
+    area.hidden = true;
+    gate.innerHTML = paidGateMarkup(
+      'Casos e informes',
+      'Crea análisis reales, vincula evidencias, registra barreras e intervenciones y genera informes.'
+    );
+    bindRequestButtons();
+    return;
+  }
+
+  gate.hidden = true;
+  area.hidden = false;
 }
 
 function renderSimulatorGate() {
@@ -223,8 +336,34 @@ function renderPreventiveGate() {
   const gate = $('#preventive-gate');
   const area = $('#preventive-area');
   if (!gate || !area) return;
-  gate.hidden = logged;
-  area.hidden = !logged;
+
+  if (!logged) {
+    gate.hidden = false;
+    area.hidden = true;
+    gate.innerHTML = `
+      <div class="gate-icon">◆</div>
+      <span class="eyebrow">Acceso de integrante</span>
+      <h2>Análisis preventivo</h2>
+      <p>Ingresa con tu cédula y código de integrante para continuar.</p>
+      <button class="btn primary" type="button" id="preventive-login-dynamic">Ingresar</button>
+    `;
+    $('#preventive-login-dynamic')?.addEventListener('click', showLogin);
+    return;
+  }
+
+  if (!hasFullAccess()) {
+    gate.hidden = false;
+    area.hidden = true;
+    gate.innerHTML = paidGateMarkup(
+      'Módulo preventivo',
+      'Registra condiciones PIF antes de una tarea, define acciones y conserva revisiones documentadas.'
+    );
+    bindRequestButtons();
+    return;
+  }
+
+  gate.hidden = true;
+  area.hidden = false;
 }
 
 function renderAnalyticsGate() {
@@ -232,8 +371,34 @@ function renderAnalyticsGate() {
   const gate = $('#analytics-gate');
   const area = $('#analytics-area');
   if (!gate || !area) return;
-  gate.hidden = logged;
-  area.hidden = !logged;
+
+  if (!logged) {
+    gate.hidden = false;
+    area.hidden = true;
+    gate.innerHTML = `
+      <div class="gate-icon">▥</div>
+      <span class="eyebrow">Acceso de integrante</span>
+      <h2>Analítica PIF-SST</h2>
+      <p>Ingresa con tu cédula y código de integrante para continuar.</p>
+      <button class="btn primary" type="button" id="analytics-login-dynamic">Ingresar</button>
+    `;
+    $('#analytics-login-dynamic')?.addEventListener('click', showLogin);
+    return;
+  }
+
+  if (!hasFullAccess()) {
+    gate.hidden = false;
+    area.hidden = true;
+    gate.innerHTML = paidGateMarkup(
+      'Analítica',
+      'Analiza frecuencias, categorías, barreras y combinaciones a partir de tus casos documentados.'
+    );
+    bindRequestButtons();
+    return;
+  }
+
+  gate.hidden = true;
+  area.hidden = false;
 }
 
 function showLogin() {
@@ -242,46 +407,21 @@ function showLogin() {
       <div class="access-logo-wrap">
         <img src="https://raw.githubusercontent.com/movidasst/principal/main/logo-oficial-movida-sst-plus.png" alt="La Movida de SST+">
       </div>
-      <p>Ingresa con los datos de tu credencial de integrante para acceder a tus análisis, simulador y herramientas PIF-SST.</p>
+      <p>Ingresa con los mismos datos de tu credencial de integrante que utilizas en los laboratorios de La Movida de SST+.</p>
     </div>
 
     <div class="access-form">
       <label class="access-field">
-        <span>País de tu credencial</span>
-        <select id="login-country" autocomplete="country">
-          <option value="VE" selected>Venezuela</option>
-          <option value="PE">Perú</option>
-          <option value="CO">Colombia</option>
-          <option value="EC">Ecuador</option>
-          <option value="MX">México</option>
-          <option value="PY">Paraguay</option>
-          <option value="AR">Argentina</option>
-          <option value="BO">Bolivia</option>
-          <option value="CR">Costa Rica</option>
-          <option value="ES">España</option>
-          <option value="UY">Uruguay</option>
-          <option value="DO">República Dominicana</option>
-          <option value="BR">Brasil</option>
-          <option value="GT">Guatemala</option>
-          <option value="HN">Honduras</option>
-          <option value="SV">El Salvador</option>
-          <option value="CL">Chile</option>
-          <option value="IT">Italia</option>
-          <option value="NI">Nicaragua</option>
-          <option value="PA">Panamá</option>
-          <option value="CU">Cuba</option>
-          <option value="US">Estados Unidos</option>
-        </select>
-      </label>
-
-      <label class="access-field">
         <span>Cédula o documento</span>
-        <input id="login-document" autocomplete="username" inputmode="numeric" placeholder="Escribe tu documento">
+        <input id="login-document" autocomplete="username" inputmode="numeric" placeholder="Escribe tu cédula o documento">
       </label>
 
       <label class="access-field">
         <span>Código de integrante</span>
-        <input id="login-code" autocomplete="current-password" maxlength="8" placeholder="Escribe tu código">
+        <div class="access-password-row">
+          <input id="login-code" type="password" autocomplete="current-password" maxlength="8" placeholder="Escribe tu código">
+          <button type="button" class="password-toggle" id="login-toggle">Mostrar</button>
+        </div>
       </label>
 
       <button class="btn primary access-submit" id="login-submit" type="button">Ingresar y comenzar</button>
@@ -296,34 +436,53 @@ function showLogin() {
   $('.modal-box')?.classList.add('login-modal');
   $('#login-submit').addEventListener('click', login);
   $('#login-code').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  $('#login-toggle').addEventListener('click', () => {
+    const input = $('#login-code');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    $('#login-toggle').textContent = show ? 'Ocultar' : 'Mostrar';
+  });
 }
 
 async function login() {
   const button = $('#login-submit');
-  const pais_iso2 = ($('#login-country').value || 'VE').trim().toUpperCase();
-  const documento = $('#login-document').value.trim();
+  const documento = $('#login-document').value.replace(/\D/g,'').trim();
   const codigo = $('#login-code').value.trim().toUpperCase();
-  if (!documento || !codigo) return toast('Ingresa documento y código de integrante.');
+  if (!documento || !codigo) return toast('Ingresa tu cédula o documento y tu código de integrante.');
+
   button.disabled = true;
-  button.textContent = 'Verificando…';
+  button.textContent = 'Verificando acceso…';
+
   try {
     const { data, error } = await supabase.functions.invoke('crear-sesion-integrante', {
-      body: { pais_iso2, documento, codigo }
+      body: { cedula: documento, codigo }
     });
+
     if (error) throw error;
     if (!data?.ok || !data?.token_hash) throw new Error(data?.error || 'No fue posible crear la sesión.');
-    const verified = await supabase.auth.verifyOtp({ token_hash: data.token_hash, type: 'magiclink' });
+
+    const verified = await supabase.auth.verifyOtp({
+      token_hash: data.token_hash,
+      type: 'magiclink'
+    });
+
     if (verified.error) throw verified.error;
+
     state.session = verified.data.session;
     state.member = data.integrante || null;
     localStorage.setItem('pif_member', JSON.stringify(state.member));
+
+    await loadAccessStatus();
     closeModal();
     renderAccount();
-    await loadCases();
+
+    if (location.hash === '#casos' && hasFullAccess()) await loadCases();
     if (location.hash === '#simulador') await loadSimulator();
-    if (location.hash === '#preventivo') await loadPreventives();
-    if (location.hash === '#analitica') await loadAnalytics();
-    toast('Acceso correcto.');
+    if (location.hash === '#preventivo' && hasFullAccess()) await loadPreventives();
+    if (location.hash === '#analitica' && hasFullAccess()) await loadAnalytics();
+    if (location.hash === '#admin' && state.isAdmin) await loadAdminAccess();
+
+    toast(state.isAdmin ? 'Sesión de administrador activa.' : 'Acceso correcto.');
   } catch (error) {
     console.error(error);
     toast(error.message || 'No fue posible iniciar sesión.');
@@ -352,6 +511,10 @@ async function logout() {
   state.simulatorAttempt = null;
   state.simulatorSelected = null;
   state.simulatorFeedback = null;
+  state.access = null;
+  state.isAdmin = false;
+  state.adminAccessRows = [];
+  state.adminSearchRows = [];
   localStorage.removeItem('pif_member');
   renderAccount();
   $('#cases-list').innerHTML = '';
@@ -366,12 +529,41 @@ async function logout() {
 
 $('#account-button').addEventListener('click', () => {
   if (!state.session) return showLogin();
+
   const meta = state.session.user?.user_metadata || {};
+  const pending = state.access?.solicitud_pago === 'pendiente';
+
   openModal('Mi cuenta', `
-    <p><strong>${esc([meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Integrante')}</strong></p>
-    <p class="help">Tus casos PIF-SST están protegidos por tu sesión autenticada.</p>
-    <button class="btn danger" type="button" id="logout-button">Cerrar sesión</button>
-  `, 'PIF-SST');
+    <div class="account-access-card">
+      <span class="eyebrow">PIF-SST</span>
+      <h3>${esc([meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Integrante')}</h3>
+      <div class="account-access-level ${hasFullAccess() ? 'full' : 'free'}">${esc(accessLabel())}</div>
+      <p>${state.isAdmin
+        ? 'Tu sesión tiene permisos de administración y acceso completo.'
+        : hasFullAccess()
+          ? 'Tienes habilitados Casos, Preventivo, Analítica, informes y carga de evidencias.'
+          : 'Tu acceso gratuito incluye Taxonomía y Simulador / Laboratorio.'}</p>
+    </div>
+
+    <div class="actions account-actions">
+      ${!state.isAdmin && !hasFullAccess()
+        ? pending
+          ? '<span class="access-request-state">Solicitud de acceso completo pendiente</span>'
+          : '<button class="btn primary" type="button" id="account-request-full">Solicitar acceso completo</button>'
+        : ''}
+      ${state.isAdmin ? '<button class="btn teal" type="button" id="open-admin">Administración</button>' : ''}
+      <button class="btn danger" type="button" id="logout-button">Cerrar sesión</button>
+    </div>
+  `, 'Acceso de integrante');
+
+  $('#account-request-full')?.addEventListener('click', async () => {
+    await requestFullAccess();
+    closeModal();
+  });
+  $('#open-admin')?.addEventListener('click', () => {
+    closeModal();
+    showView('admin');
+  });
   $('#logout-button').addEventListener('click', logout);
 });
 $('#gate-login').addEventListener('click', showLogin);
@@ -379,8 +571,134 @@ $('#simulator-login')?.addEventListener('click', showLogin);
 $('#preventive-login')?.addEventListener('click', showLogin);
 $('#analytics-login')?.addEventListener('click', showLogin);
 
+
+async function loadAdminAccess() {
+  if (!state.isAdmin) return;
+  const { data, error } = await supabase.rpc('pif_admin_list_access');
+  if (error) {
+    console.error(error);
+    return toast('No fue posible cargar la administración.');
+  }
+  state.adminAccessRows = data || [];
+  renderAdminAccess();
+}
+
+function renderAdminAccess() {
+  const rows = state.adminAccessRows || [];
+  const pending = rows.filter(r => r.solicitud_pago === 'pendiente');
+  const full = rows.filter(r => r.nivel === 'completo' && r.activo);
+  const free = rows.filter(r => r.nivel === 'gratuito' && r.activo);
+  const blocked = rows.filter(r => !r.activo);
+
+  $('#admin-kpis').innerHTML = `
+    <div class="admin-kpi"><strong>${pending.length}</strong><span>pendientes</span></div>
+    <div class="admin-kpi"><strong>${full.length}</strong><span>acceso completo</span></div>
+    <div class="admin-kpi"><strong>${free.length}</strong><span>gratuitos</span></div>
+    <div class="admin-kpi"><strong>${blocked.length}</strong><span>bloqueados</span></div>
+  `;
+
+  $('#admin-pending-list').innerHTML = pending.length
+    ? pending.map(r => adminMemberCard(r,true)).join('')
+    : '<div class="empty-state small">No hay solicitudes pendientes.</div>';
+
+  $('#admin-access-list').innerHTML = rows.length
+    ? rows.map(r => adminMemberCard(r,false)).join('')
+    : '<div class="empty-state small">Todavía no hay integrantes registrados en PIF-SST.</div>';
+
+  bindAdminActions();
+}
+
+function adminMemberCard(r, pendingMode=false) {
+  const name = [r.nombres,r.apellidos].filter(Boolean).join(' ') || 'Integrante';
+  const location = r.pais_nombre || r.pais_iso2 || '';
+  const access = !r.activo ? 'Bloqueado' : r.nivel === 'completo' ? 'Completo' : 'Gratuito';
+
+  return `
+    <article class="admin-user-row">
+      <div class="admin-user-main">
+        <strong>${esc(name)}</strong>
+        <span>${esc([r.cedula,location].filter(Boolean).join(' · '))}</span>
+        <div class="pills">
+          <span class="pill ${r.nivel === 'completo' && r.activo ? 'teal' : ''}">${esc(access)}</span>
+          ${r.solicitud_pago === 'pendiente' ? '<span class="pill yellow">Solicitud pendiente</span>' : ''}
+        </div>
+      </div>
+      <div class="admin-user-actions">
+        ${pendingMode || r.nivel !== 'completo' || !r.activo
+          ? `<button class="btn teal admin-set-access" data-id="${r.integrante_id}" data-level="completo" type="button">Aprobar completo</button>`
+          : ''}
+        ${r.nivel !== 'gratuito' || !r.activo
+          ? `<button class="btn secondary admin-set-access" data-id="${r.integrante_id}" data-level="gratuito" type="button">Dejar gratuito</button>`
+          : ''}
+        ${r.activo
+          ? `<button class="btn danger admin-block-access" data-id="${r.integrante_id}" type="button">Bloquear</button>`
+          : `<button class="btn secondary admin-set-access" data-id="${r.integrante_id}" data-level="${r.nivel || 'gratuito'}" type="button">Reactivar</button>`}
+      </div>
+    </article>
+  `;
+}
+
+function bindAdminActions() {
+  $('.admin-set-access').forEach(btn => btn.addEventListener('click', () => {
+    setAdminAccess(Number(btn.dataset.id), btn.dataset.level, true);
+  }));
+  $('.admin-block-access').forEach(btn => btn.addEventListener('click', () => {
+    setAdminAccess(Number(btn.dataset.id), 'gratuito', false);
+  }));
+}
+
+async function setAdminAccess(integranteId, nivel, activo=true) {
+  const label = !activo ? 'bloquear este acceso' : nivel === 'completo' ? 'aprobar acceso completo' : 'dejar acceso gratuito';
+  if (!confirm('¿Quieres ' + label + '?')) return;
+
+  const { error } = await supabase.rpc('pif_admin_set_access', {
+    p_integrante_id: integranteId,
+    p_nivel: nivel,
+    p_activo: activo,
+    p_nota: null
+  });
+
+  if (error) {
+    console.error(error);
+    return toast('No fue posible actualizar el acceso.');
+  }
+
+  await loadAdminAccess();
+  toast('Acceso actualizado.');
+}
+
+async function searchAdminMembers() {
+  const q = $('#admin-search-input').value.trim();
+  if (q.length < 2) return toast('Escribe al menos 2 caracteres.');
+
+  const button = $('#admin-search-button');
+  button.disabled = true;
+  button.textContent = 'Buscando…';
+
+  const { data, error } = await supabase.rpc('pif_admin_search_integrantes', { p_query: q });
+
+  button.disabled = false;
+  button.textContent = 'Buscar';
+
+  if (error) {
+    console.error(error);
+    return toast('No fue posible buscar integrantes.');
+  }
+
+  state.adminSearchRows = data || [];
+  $('#admin-search-results').innerHTML = state.adminSearchRows.length
+    ? state.adminSearchRows.map(r => adminMemberCard(r,false)).join('')
+    : '<div class="empty-state small">No se encontraron integrantes.</div>';
+  bindAdminActions();
+}
+
+$('#admin-search-button')?.addEventListener('click', searchAdminMembers);
+$('#admin-search-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchAdminMembers();
+});
+
 async function loadCases() {
-  if (!state.session) return;
+  if (!state.session || !hasFullAccess()) return;
   const { data, error } = await supabase
     .from('pif_casos')
     .select('*')
@@ -1992,7 +2310,7 @@ function renderSimulatorResult() {
 }
 
 async function loadPreventives() {
-  if (!state.session) return;
+  if (!state.session || !hasFullAccess()) return;
   const { data, error } = await supabase
     .from('pif_preventivos')
     .select('*')
@@ -2566,7 +2884,7 @@ $('#new-preventive-button')?.addEventListener('click', showNewPreventive);
 $('#preventive-demo-button')?.addEventListener('click', createPreventiveDemo);
 
 async function loadAnalytics() {
-  if (!state.session) return;
+  if (!state.session || !hasFullAccess()) return;
   $('#analytics-status').textContent = 'Calculando…';
 
   const casesRes = await supabase.from('pif_casos').select('*').neq('tipo', 'aprendizaje').order('created_at');
@@ -2724,16 +3042,25 @@ async function initAuth() {
   const { data } = await supabase.auth.getSession();
   state.session = data.session || null;
   try { state.member = JSON.parse(localStorage.getItem('pif_member') || 'null'); } catch {}
-  supabase.auth.onAuthStateChange((_event, session) => {
+
+  if (state.session) await loadAccessStatus();
+
+  supabase.auth.onAuthStateChange(async (_event, session) => {
     state.session = session;
+    if (session) await loadAccessStatus();
+    else {
+      state.access = null;
+      state.isAdmin = false;
+    }
     renderAccount();
   });
+
   renderAccount();
 }
 
 async function init() {
   const target = location.hash.replace('#','');
-  if (['inicio','taxonomia','casos','simulador','preventivo','analitica'].includes(target)) showView(target);
+  if (['inicio','taxonomia','casos','simulador','preventivo','analitica','admin'].includes(target)) showView(target);
   try {
     await loadTaxonomy();
   } catch (error) {
@@ -2742,9 +3069,10 @@ async function init() {
     $('#taxonomy-grid').innerHTML = '<div class="empty-state">No se pudo consultar la taxonomía en este momento.</div>';
   }
   await initAuth();
-  if (state.session && target === 'casos') await loadCases();
+  if (state.session && target === 'casos' && hasFullAccess()) await loadCases();
   if (state.session && target === 'simulador') await loadSimulator();
-  if (state.session && target === 'preventivo') await loadPreventives();
-  if (state.session && target === 'analitica') await loadAnalytics();
+  if (state.session && target === 'preventivo' && hasFullAccess()) await loadPreventives();
+  if (state.session && target === 'analitica' && hasFullAccess()) await loadAnalytics();
+  if (state.session && target === 'admin' && state.isAdmin) await loadAdminAccess();
 }
 init();
