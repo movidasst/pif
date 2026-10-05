@@ -32,7 +32,8 @@ const state = {
   member: null,
   cases: [],
   currentCase: null,
-  detail: null
+  detail: null,
+  analytics: null
 };
 
 const $ = selector => document.querySelector(selector);
@@ -78,6 +79,10 @@ function showView(name) {
   if (name === 'casos') {
     if (state.session) loadCases();
     renderCasesGate();
+  }
+  if (name === 'analitica') {
+    renderAnalyticsGate();
+    if (state.session) loadAnalytics();
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -173,12 +178,22 @@ function renderAccount() {
     button.textContent = 'Ingresar';
   }
   renderCasesGate();
+  renderAnalyticsGate();
 }
 
 function renderCasesGate() {
   const logged = Boolean(state.session);
   $('#cases-gate').hidden = logged;
   $('#cases-area').hidden = !logged;
+}
+
+function renderAnalyticsGate() {
+  const logged = Boolean(state.session);
+  const gate = $('#analytics-gate');
+  const area = $('#analytics-area');
+  if (!gate || !area) return;
+  gate.hidden = logged;
+  area.hidden = !logged;
 }
 
 function showLogin() {
@@ -267,6 +282,7 @@ $('#account-button').addEventListener('click', () => {
   $('#logout-button').addEventListener('click', logout);
 });
 $('#gate-login').addEventListener('click', showLogin);
+$('#analytics-login')?.addEventListener('click', showLogin);
 
 async function loadCases() {
   if (!state.session) return;
@@ -570,7 +586,7 @@ async function openCase(caseId) {
   const hallazgos = hallazgosRes.data || [];
   const ids = hallazgos.map(h => h.id);
 
-  let barreras = [], evidencias = [], factores = [], factorEvidencias = [];
+  let barreras = [], evidencias = [], factores = [], factorEvidencias = [], intervenciones = [];
   if (ids.length) {
     const [bRes, eRes, fRes] = await Promise.all([
       supabase.from('pif_barreras').select('*').in('hallazgo_id', ids),
@@ -587,9 +603,110 @@ async function openCase(caseId) {
       if (!rel.error) factorEvidencias = rel.data || [];
     }
   }
-  state.detail = { hallazgos, barreras, evidencias, factores, factorEvidencias };
+  const intRes = await supabase.from('pif_intervenciones').select('*').eq('caso_id', caseId).order('created_at');
+  if (!intRes.error) intervenciones = intRes.data || [];
+  state.detail = { hallazgos, barreras, evidencias, factores, factorEvidencias, intervenciones };
   renderCaseWorkspace();
   $('#case-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+
+function getCaseQuality(detail) {
+  const hallazgos = detail?.hallazgos || [];
+  const barreras = detail?.barreras || [];
+  const evidencias = detail?.evidencias || [];
+  const factores = detail?.factores || [];
+  const relaciones = detail?.factorEvidencias || [];
+
+  const hallazgosSinBarrera = hallazgos.filter(h => !barreras.some(b => b.hallazgo_id === h.id)).length;
+  const hipotesis = factores.filter(f => f.respaldo === 'hipotesis').length;
+  const parciales = factores.filter(f => f.respaldo === 'parcial').length;
+  const confirmadosSinEvidencia = factores.filter(f =>
+    f.respaldo === 'confirmado' && !relaciones.some(r => r.factor_id === f.id)
+  ).length;
+  const evidenciasSinVincular = evidencias.filter(e =>
+    !relaciones.some(r => r.evidencia_id === e.id)
+  ).length;
+
+  const critical = confirmadosSinEvidencia;
+  const review = hallazgosSinBarrera + hipotesis + parciales + evidenciasSinVincular;
+
+  return {
+    hallazgosSinBarrera,
+    hipotesis,
+    parciales,
+    confirmadosSinEvidencia,
+    evidenciasSinVincular,
+    critical,
+    review,
+    ready: critical === 0 && hallazgos.length > 0 && factores.length > 0
+  };
+}
+
+function renderQualityPanel(detail) {
+  const q = getCaseQuality(detail);
+  const tone = q.critical ? 'danger' : q.review ? 'warning' : 'ok';
+  const title = q.critical ? 'Hay aspectos críticos por corregir' : q.review ? 'Aspectos que conviene revisar' : 'Análisis consistente';
+
+  return `
+    <section class="quality-panel ${tone}">
+      <div class="quality-head">
+        <div>
+          <span class="eyebrow">Control de calidad</span>
+          <h3>${title}</h3>
+        </div>
+        <span class="quality-score">${q.critical ? 'Corregir' : q.review ? 'Revisar' : 'Listo'}</span>
+      </div>
+      <div class="quality-grid">
+        <div><strong>${q.confirmadosSinEvidencia}</strong><span>PIF confirmados sin evidencia</span></div>
+        <div><strong>${q.hallazgosSinBarrera}</strong><span>hallazgos sin barrera registrada</span></div>
+        <div><strong>${q.hipotesis + q.parciales}</strong><span>hipótesis o respaldos parciales</span></div>
+        <div><strong>${q.evidenciasSinVincular}</strong><span>evidencias aún no vinculadas a PIF</span></div>
+      </div>
+      <p>Este panel revisa coherencia documental. No determina si la investigación es correcta ni sustituye el juicio profesional.</p>
+    </section>
+  `;
+}
+
+function renderCaseSummary(detail) {
+  const confirmed = detail.factores.filter(f => f.respaldo === 'confirmado').length;
+  const partial = detail.factores.filter(f => f.respaldo === 'parcial').length;
+  const hypotheses = detail.factores.filter(f => f.respaldo === 'hipotesis').length;
+  return `
+    <div class="case-kpis">
+      <div><strong>${detail.hallazgos.length}</strong><span>hallazgos</span></div>
+      <div><strong>${detail.evidencias.length}</strong><span>evidencias</span></div>
+      <div><strong>${confirmed}</strong><span>PIF confirmados</span></div>
+      <div><strong>${partial}</strong><span>respaldo parcial</span></div>
+      <div><strong>${hypotheses}</strong><span>hipótesis</span></div>
+      <div><strong>${detail.intervenciones?.length || 0}</strong><span>intervenciones</span></div>
+    </div>
+  `;
+}
+
+function renderInterventions(detail) {
+  const items = detail.intervenciones || [];
+  return `
+    <section class="interventions-panel">
+      <div class="subsection-title">
+        <strong>Intervenciones</strong>
+        <span class="help">Acciones derivadas del análisis, no de una selección automática.</span>
+      </div>
+      <div class="mini-list">
+        ${items.length ? items.map(i => `
+          <div class="mini-item">
+            <strong>${esc(i.titulo)}</strong>
+            <br>${esc(i.descripcion || '')}
+            <div class="pills">
+              ${i.pif_codigo ? `<span class="pill teal">${esc(i.pif_codigo)}</span>` : ''}
+              <span class="pill">${esc(i.estado.replace('_',' '))}</span>
+              ${i.responsable ? `<span class="pill">${esc(i.responsable)}</span>` : ''}
+            </div>
+          </div>
+        `).join('') : '<div class="empty-state small">Aún no hay intervenciones registradas.</div>'}
+      </div>
+    </section>
+  `;
 }
 
 function renderCaseWorkspace() {
@@ -617,9 +734,14 @@ function renderCaseWorkspace() {
         </div>
       </div>
 
+      ${renderCaseSummary(d)}
+      ${renderQualityPanel(d)}
+
       <div class="hallazgo-list">
         ${d.hallazgos.length ? d.hallazgos.map(renderFinding).join('') : '<div class="empty-state small">Aún no hay hallazgos. Registra primero una acción, decisión o condición observable identificada durante la investigación.</div>'}
       </div>
+
+      ${renderInterventions(d)}
     </section>
   `;
 
@@ -1006,8 +1128,151 @@ async function saveFactor(hallazgoId) {
   toast('PIF asociado al hallazgo.');
 }
 
+
+async function loadAnalytics() {
+  if (!state.session) return;
+  $('#analytics-status').textContent = 'Calculando…';
+
+  const casesRes = await supabase.from('pif_casos').select('*').neq('tipo', 'aprendizaje').order('created_at');
+  if (casesRes.error) {
+    console.error(casesRes.error);
+    $('#analytics-status').textContent = 'No fue posible cargar';
+    return toast('No fue posible cargar la analítica.');
+  }
+
+  const cases = casesRes.data || [];
+  const caseIds = cases.map(c => c.id);
+  if (!caseIds.length) {
+    state.analytics = { cases: [], findings: [], factors: [], barriers: [] };
+    renderAnalytics();
+    return;
+  }
+
+  const findingsRes = await supabase.from('pif_hallazgos').select('*').in('caso_id', caseIds);
+  if (findingsRes.error) return toast('No fue posible cargar hallazgos para analítica.');
+  const findings = findingsRes.data || [];
+  const findingIds = findings.map(f => f.id);
+
+  let factors = [], barriers = [];
+  if (findingIds.length) {
+    const [fRes, bRes] = await Promise.all([
+      supabase.from('pif_hallazgo_factores').select('*').in('hallazgo_id', findingIds),
+      supabase.from('pif_barreras').select('*').in('hallazgo_id', findingIds)
+    ]);
+    if (fRes.error || bRes.error) return toast('No fue posible completar la analítica.');
+    factors = fRes.data || [];
+    barriers = bRes.data || [];
+  }
+
+  state.analytics = { cases, findings, factors, barriers };
+  renderAnalytics();
+}
+
+function countBy(items, keyFn) {
+  const map = new Map();
+  items.forEach(item => {
+    const key = keyFn(item);
+    if (!key) return;
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return [...map.entries()].sort((a,b) => b[1] - a[1]);
+}
+
+function renderBars(target, rows, labelFn) {
+  const el = $(target);
+  if (!el) return;
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty-state small">Aún no hay datos suficientes.</div>';
+    return;
+  }
+  const max = Math.max(...rows.map(r => r[1]), 1);
+  el.innerHTML = rows.map(([key, value]) => `
+    <div class="bar-row">
+      <div class="bar-label"><span>${esc(labelFn(key))}</span><strong>${value}</strong></div>
+      <div class="bar-track"><span style="width:${Math.max(8,(value/max)*100)}%"></span></div>
+    </div>
+  `).join('');
+}
+
+function renderAnalytics() {
+  const a = state.analytics || { cases: [], findings: [], factors: [], barriers: [] };
+  const confirmed = a.factors.filter(f => f.respaldo === 'confirmado');
+  const realCases = a.cases.length;
+  const closed = a.cases.filter(c => c.estado === 'cerrado').length;
+  const uniquePif = new Set(confirmed.map(f => f.pif_codigo)).size;
+
+  $('#analytics-summary').innerHTML = `
+    <div class="analytics-kpi"><strong>${realCases}</strong><span>casos reales/anonimizados</span></div>
+    <div class="analytics-kpi"><strong>${a.findings.length}</strong><span>hallazgos</span></div>
+    <div class="analytics-kpi"><strong>${confirmed.length}</strong><span>codificaciones confirmadas</span></div>
+    <div class="analytics-kpi"><strong>${uniquePif}</strong><span>PIF distintos</span></div>
+    <div class="analytics-kpi"><strong>${closed}</strong><span>casos cerrados</span></div>
+  `;
+
+  const topPif = countBy(confirmed, f => f.pif_codigo).slice(0, 10);
+  renderBars('#analytics-top-pif', topPif, code => {
+    const def = state.factors.find(f => f.codigo === code);
+    return `${code} · ${def?.nombre_es || code}`;
+  });
+
+  const cats = countBy(confirmed, f => {
+    const def = state.factors.find(x => x.codigo === f.pif_codigo);
+    return def?.categoria_codigo || null;
+  });
+  renderBars('#analytics-categories', cats, code => {
+    const cat = state.categories.find(c => c.codigo === code);
+    return cat?.nombre_es || code;
+  });
+
+  const barrierRows = countBy(a.barriers, b => b.estado || b.relacion).slice(0, 10);
+  const barrierLabels = {
+    funciono:'Funcionó',
+    parcial:'Funcionó parcialmente',
+    degradada:'Degradada',
+    no_disponible:'No disponible',
+    no_utilizada:'No utilizada',
+    desconocido:'Desconocido',
+    no_aplica:'No aplica',
+    si:'Sí',
+    no:'No',
+    no_determinado:'No determinado'
+  };
+  renderBars('#analytics-barriers', barrierRows, key => barrierLabels[key] || key);
+
+  const byFinding = new Map();
+  confirmed.forEach(f => {
+    if (!byFinding.has(f.hallazgo_id)) byFinding.set(f.hallazgo_id, []);
+    byFinding.get(f.hallazgo_id).push(f.pif_codigo);
+  });
+  const combos = new Map();
+  for (const codes of byFinding.values()) {
+    const unique = [...new Set(codes)].sort();
+    for (let i=0;i<unique.length;i++) {
+      for (let j=i+1;j<unique.length;j++) {
+        const key = unique[i] + ' + ' + unique[j];
+        combos.set(key, (combos.get(key) || 0) + 1);
+      }
+    }
+  }
+  const comboRows = [...combos.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  $('#analytics-combinations').innerHTML = comboRows.length
+    ? comboRows.map(([combo,count]) => `<div class="mini-item"><strong>${esc(combo)}</strong><br>${count} hallazgo(s) con ambos PIF confirmados.</div>`).join('')
+    : '<div class="empty-state small">Se necesitan hallazgos con más de un PIF confirmado para mostrar combinaciones.</div>';
+
+  $('#analytics-status').textContent = realCases
+    ? `${realCases} caso(s) incluidos · casos de aprendizaje excluidos`
+    : 'Sin casos reales para analizar';
+}
+
 async function closeCase() {
-  if (!confirm('¿Cerrar este análisis? Podrás consultarlo, pero quedará marcado como cerrado.')) return;
+  const q = getCaseQuality(state.detail);
+  if (q.confirmadosSinEvidencia > 0) {
+    return toast('No puedes cerrar: hay PIF confirmados sin evidencia vinculada.');
+  }
+  const reviewText = q.review
+    ? ` Hay ${q.review} aspecto(s) pendiente(s) de revisión. Puedes cerrar, pero quedarán registrados en el control de calidad.`
+    : '';
+  if (!confirm('¿Cerrar este análisis? Podrás consultarlo, pero quedará marcado como cerrado.' + reviewText)) return;
   const { error } = await supabase.from('pif_casos').update({
     estado: 'cerrado',
     cerrado_at: new Date().toISOString()
@@ -1032,7 +1297,7 @@ async function initAuth() {
 
 async function init() {
   const target = location.hash.replace('#','');
-  if (['inicio','taxonomia','casos'].includes(target)) showView(target);
+  if (['inicio','taxonomia','casos','analitica'].includes(target)) showView(target);
   try {
     await loadTaxonomy();
   } catch (error) {
@@ -1042,5 +1307,6 @@ async function init() {
   }
   await initAuth();
   if (state.session && target === 'casos') await loadCases();
+  if (state.session && target === 'analitica') await loadAnalytics();
 }
 init();
