@@ -146,7 +146,7 @@ function openModal(title, html, eyebrow = 'PIF-SST') {
 function closeModal() {
   $('#modal').hidden = true;
   $('#modal-body').innerHTML = '';
-  $('.modal-box')?.classList.remove('login-modal');
+  $('.modal-box')?.classList.remove('login-modal','admin-login-modal');
 }
 $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
@@ -265,17 +265,25 @@ $('#taxonomy-search').addEventListener('input', e => {
 function renderAccount() {
   const button = $('#account-button');
   if (state.session) {
-    const meta = state.session.user?.user_metadata || {};
-    const label = [meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Mi cuenta';
-    button.textContent = label.length > 20 ? label.slice(0, 18) + '…' : label;
-    button.title = accessLabel();
+    if (state.isAdmin) {
+      button.textContent = 'Administrador';
+      button.title = 'Sesión administrativa activa';
+    } else {
+      const meta = state.session.user?.user_metadata || {};
+      const label = [meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Mi cuenta';
+      button.textContent = label.length > 20 ? label.slice(0, 18) + '…' : label;
+      button.title = accessLabel();
+    }
   } else {
     button.textContent = 'Ingresar';
     button.title = '';
   }
 
-  const adminNav = $('#admin-nav');
-  if (adminNav) adminNav.hidden = !state.isAdmin;
+  const adminButton = $('#admin-button');
+  if (adminButton) {
+    adminButton.classList.toggle('active', state.isAdmin);
+    adminButton.title = state.isAdmin ? 'Abrir administración PIF-SST' : 'Acceso administrativo';
+  }
 
   renderCasesGate();
   renderSimulatorGate();
@@ -284,7 +292,7 @@ function renderAccount() {
 }
 
 function bindRequestButtons() {
-  $('.request-full-access').forEach(btn => btn.addEventListener('click', requestFullAccess));
+  document.querySelectorAll('.request-full-access').forEach(btn => btn.addEventListener('click', requestFullAccess));
 }
 
 function renderCasesGate() {
@@ -399,6 +407,106 @@ function renderAnalyticsGate() {
 
   gate.hidden = true;
   area.hidden = false;
+}
+
+function showAdminLogin(message = '') {
+  openModal('Administración PIF-SST', `
+    <div class="admin-login-brand">
+      <div class="admin-login-shield">
+        <svg class="admin-shield-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3 20 6v5c0 5-3.3 8.2-8 10-4.7-1.8-8-5-8-10V6l8-3Z"/>
+          <path d="M9 12h6M12 9v6"/>
+        </svg>
+      </div>
+      <span class="eyebrow">Acceso administrativo</span>
+      <p>Utiliza el mismo correo y contraseña de administrador que usas en Gestión.</p>
+    </div>
+
+    <form id="admin-login-form" class="access-form">
+      <label class="access-field">
+        <span>Correo administrativo</span>
+        <input id="admin-login-email" type="email" autocomplete="username" required placeholder="tu@correo.com">
+      </label>
+      <label class="access-field">
+        <span>Contraseña</span>
+        <div class="access-password-row">
+          <input id="admin-login-password" type="password" autocomplete="current-password" required placeholder="••••••••">
+          <button type="button" class="password-toggle" id="admin-login-toggle">Mostrar</button>
+        </div>
+      </label>
+      <div id="admin-login-error" class="admin-login-error" ${message ? '' : 'hidden'}>${esc(message)}</div>
+      <button class="btn primary access-submit" id="admin-login-submit" type="submit">Ingresar a administración</button>
+    </form>
+  `, 'Administración');
+
+  $('.modal-box')?.classList.add('login-modal','admin-login-modal');
+  $('#admin-login-form').addEventListener('submit', adminLogin);
+  $('#admin-login-toggle').addEventListener('click', () => {
+    const input = $('#admin-login-password');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    $('#admin-login-toggle').textContent = show ? 'Ocultar' : 'Mostrar';
+  });
+}
+
+async function adminLogin(event) {
+  event?.preventDefault();
+  const email = $('#admin-login-email')?.value.trim();
+  const password = $('#admin-login-password')?.value || '';
+  const button = $('#admin-login-submit');
+  const errorBox = $('#admin-login-error');
+
+  if (!email || !password) {
+    if (errorBox) {
+      errorBox.hidden = false;
+      errorBox.textContent = 'Ingresa correo y contraseña.';
+    }
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Verificando acceso…';
+  if (errorBox) errorBox.hidden = true;
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+
+    const check = await supabase.rpc('admin_gestion_resumen');
+    if (check.error) {
+      await supabase.auth.signOut();
+      throw new Error('La cuenta existe, pero no tiene permiso administrativo.');
+    }
+
+    state.session = data.session;
+    state.member = null;
+    localStorage.removeItem('pif_member');
+
+    await loadAccessStatus();
+    if (!state.isAdmin) {
+      await supabase.auth.signOut();
+      throw new Error('La cuenta no tiene permisos de administración en PIF-SST.');
+    }
+
+    closeModal();
+    renderAccount();
+    showView('admin');
+    await loadAdminAccess();
+    toast('Sesión administrativa activa.');
+  } catch (error) {
+    console.error(error);
+    if (errorBox) {
+      errorBox.hidden = false;
+      errorBox.textContent = error.message || 'No fue posible iniciar sesión administrativa.';
+    } else {
+      toast('No fue posible iniciar sesión administrativa.');
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Ingresar a administración';
+    }
+  }
 }
 
 function showLogin() {
@@ -527,16 +635,27 @@ async function logout() {
   toast('Sesión cerrada.');
 }
 
+$('#admin-button')?.addEventListener('click', () => {
+  if (state.isAdmin && state.session) {
+    showView('admin');
+    return;
+  }
+  showAdminLogin();
+});
+
 $('#account-button').addEventListener('click', () => {
   if (!state.session) return showLogin();
 
   const meta = state.session.user?.user_metadata || {};
   const pending = state.access?.solicitud_pago === 'pendiente';
+  const accountName = state.isAdmin
+    ? (state.session.user?.email || 'Administrador')
+    : ([meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Integrante');
 
   openModal('Mi cuenta', `
     <div class="account-access-card">
       <span class="eyebrow">PIF-SST</span>
-      <h3>${esc([meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Integrante')}</h3>
+      <h3>${esc(accountName)}</h3>
       <div class="account-access-level ${hasFullAccess() ? 'full' : 'free'}">${esc(accessLabel())}</div>
       <p>${state.isAdmin
         ? 'Tu sesión tiene permisos de administración y acceso completo.'
@@ -551,7 +670,6 @@ $('#account-button').addEventListener('click', () => {
           ? '<span class="access-request-state">Solicitud de acceso completo pendiente</span>'
           : '<button class="btn primary" type="button" id="account-request-full">Solicitar acceso completo</button>'
         : ''}
-      ${state.isAdmin ? '<button class="btn teal" type="button" id="open-admin">Administración</button>' : ''}
       <button class="btn danger" type="button" id="logout-button">Cerrar sesión</button>
     </div>
   `, 'Acceso de integrante');
@@ -559,10 +677,6 @@ $('#account-button').addEventListener('click', () => {
   $('#account-request-full')?.addEventListener('click', async () => {
     await requestFullAccess();
     closeModal();
-  });
-  $('#open-admin')?.addEventListener('click', () => {
-    closeModal();
-    showView('admin');
   });
   $('#logout-button').addEventListener('click', logout);
 });
@@ -3074,5 +3188,6 @@ async function init() {
   if (state.session && target === 'preventivo' && hasFullAccess()) await loadPreventives();
   if (state.session && target === 'analitica' && hasFullAccess()) await loadAnalytics();
   if (state.session && target === 'admin' && state.isAdmin) await loadAdminAccess();
+  if (target === 'admin' && !state.isAdmin) showView('inicio');
 }
 init();
