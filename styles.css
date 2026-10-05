@@ -1364,3 +1364,71 @@ button,input,select,textarea{font-family:inherit}
 @media(max-width:700px){
   .admin-banner-actions{justify-content:flex-start}
 }
+
+
+/* ===== Significado visible de PIF ===== */
+.pif-meaning{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+.pif-meaning>strong{
+  display:grid;
+  place-items:center;
+  min-width:48px;
+  min-height:36px;
+  padding:5px 10px;
+  border-radius:10px;
+  font-size:.86rem;
+  font-weight:900;
+  letter-spacing:.05em;
+}
+.pif-meaning>span{
+  display:grid;
+  gap:1px;
+  line-height:1.2;
+}
+.pif-meaning b{
+  font-size:.74rem;
+  font-weight:800;
+}
+.pif-meaning small{
+  font-size:.66rem;
+  font-weight:600;
+}
+.hero-pif-meaning{
+  margin:0 0 14px;
+  padding:8px 11px 8px 8px;
+  border:1px solid rgba(112,241,242,.22);
+  border-radius:13px;
+  background:rgba(255,255,255,.07);
+  backdrop-filter:blur(7px);
+}
+.hero-pif-meaning>strong{
+  background:linear-gradient(180deg,#58f0ef,#10cbd0);
+  color:#002c54;
+  box-shadow:0 6px 16px rgba(0,205,208,.2);
+}
+.hero-pif-meaning b{color:#fff}
+.hero-pif-meaning small{color:#cce9f2}
+.banner-pif-meaning{
+  margin:8px 0 10px;
+  padding:7px 10px 7px 7px;
+  border-radius:12px;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.14);
+}
+.banner-pif-meaning>strong{
+  min-width:44px;
+  min-height:32px;
+  background:#52ecec;
+  color:#003259;
+}
+.banner-pif-meaning b{color:#fff}
+.banner-pif-meaning small{color:#d8eff5}
+@media(max-width:560px){
+  .pif-meaning{align-items:flex-start}
+  .pif-meaning>strong{min-width:44px}
+  .pif-meaning b{font-size:.69rem}
+  .pif-meaning small{font-size:.61rem}
+}
