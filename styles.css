@@ -1432,3 +1432,86 @@ button,input,select,textarea{font-family:inherit}
   .pif-meaning b{font-size:.69rem}
   .pif-meaning small{font-size:.61rem}
 }
+
+
+/* ===== Enlace al artículo técnico sobre PIF ===== */
+.article-cta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-decoration:none;
+  border-radius:14px;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.article-cta:hover{
+  transform:translateY(-2px);
+}
+.article-cta-icon{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:#0a66c2;
+  color:#fff;
+  font-size:.72rem;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+.article-cta>span:nth-child(2){
+  display:grid;
+  gap:1px;
+  min-width:0;
+}
+.article-cta strong{
+  font-size:.75rem;
+  font-weight:900;
+}
+.article-cta small{
+  font-size:.64rem;
+  line-height:1.35;
+}
+.article-cta>b{
+  margin-left:auto;
+  flex:0 0 auto;
+  font-size:.7rem;
+  font-weight:900;
+}
+.hero-article-cta{
+  width:min(590px,100%);
+  margin:0 0 14px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+  backdrop-filter:blur(8px);
+  box-shadow:0 10px 24px rgba(0,0,0,.08);
+  color:white;
+}
+.hero-article-cta:hover{
+  border-color:rgba(108,239,240,.42);
+  background:rgba(255,255,255,.12);
+  box-shadow:0 15px 30px rgba(0,0,0,.12);
+}
+.hero-article-cta strong{color:#fff}
+.hero-article-cta small{color:#cfe8f2}
+.hero-article-cta>b{color:#6ff4f6}
+.taxonomy-article-cta{
+  margin:0 0 14px;
+  padding:13px 14px;
+  border:1px solid #dbe7ef;
+  background:linear-gradient(180deg,#ffffff,#f8fbfd);
+  box-shadow:0 8px 22px rgba(0,32,91,.045);
+  color:var(--navy);
+}
+.taxonomy-article-cta:hover{
+  border-color:#a9d4d8;
+  box-shadow:0 13px 30px rgba(0,32,91,.08);
+}
+.taxonomy-article-cta small{color:var(--muted)}
+.taxonomy-article-cta>b{color:var(--teal)}
+@media(max-width:620px){
+  .article-cta{align-items:flex-start}
+  .article-cta>b{font-size:.62rem}
+  .taxonomy-article-cta>b{max-width:76px;text-align:right}
+}
