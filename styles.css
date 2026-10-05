@@ -1249,3 +1249,11 @@ button,input,select,textarea{font-family:inherit}
   .admin-search{grid-template-columns:1fr}
   .admin-kpis{grid-template-columns:1fr 1fr}
 }
+
+.module-access{
+  position:absolute;top:18px;right:16px;
+  padding:5px 8px;border-radius:999px;font-size:.58rem;font-weight:900;
+  letter-spacing:.02em
+}
+.module-access.free{background:#e8f8f1;color:#167553}
+.module-access.full{background:#fff2c6;color:#755800}
