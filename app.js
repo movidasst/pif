@@ -730,6 +730,7 @@ function renderCaseWorkspace() {
         <div class="actions">
           <button class="btn teal" type="button" id="add-finding">+ Agregar hallazgo</button>
           ${c.codigo_interno === 'DEMO-EI3646-HERRAMIENTA' ? '<button class="btn demo" type="button" id="demo-upload">📎 Probar archivo</button>' : ''}
+          <button class="btn secondary" type="button" id="generate-report">📄 Informe PDF</button>
           ${c.estado !== 'cerrado' ? '<button class="btn secondary" type="button" id="close-case">Cerrar análisis</button>' : ''}
         </div>
       </div>
@@ -746,6 +747,7 @@ function renderCaseWorkspace() {
   `;
 
   $('#add-finding')?.addEventListener('click', showAddFinding);
+  $('#generate-report')?.addEventListener('click', openCaseReport);
   $('#demo-upload')?.addEventListener('click', () => {
     const firstFinding = state.detail?.hallazgos?.[0];
     if (!firstFinding) return toast('El caso DEMO no tiene hallazgo disponible.');
@@ -1128,6 +1130,295 @@ async function saveFactor(hallazgoId) {
   toast('PIF asociado al hallazgo.');
 }
 
+
+
+function reportDate(value) {
+  if (!value) return 'No indicada';
+  try {
+    return new Intl.DateTimeFormat('es', { dateStyle: 'long' }).format(new Date(value + (String(value).length === 10 ? 'T12:00:00' : '')));
+  } catch {
+    return String(value);
+  }
+}
+
+function reportAnalystName() {
+  const meta = state.session?.user?.user_metadata || {};
+  const memberName = [state.member?.nombres, state.member?.apellidos].filter(Boolean).join(' ').trim();
+  const authName = [meta.nombres, meta.apellidos].filter(Boolean).join(' ').trim();
+  return memberName || authName || 'Integrante de La Movida de SST+';
+}
+
+function reportStateLabel(value) {
+  const labels = {
+    borrador: 'Borrador',
+    en_analisis: 'En análisis',
+    revision: 'En revisión',
+    cerrado: 'Cerrado'
+  };
+  return labels[value] || value || 'Sin estado';
+}
+
+function reportSupportLabel(value) {
+  const labels = {
+    confirmado: 'Confirmado',
+    parcial: 'Respaldo parcial',
+    hipotesis: 'Hipótesis'
+  };
+  return labels[value] || value || '';
+}
+
+function buildCaseReportHTML() {
+  const c = state.currentCase;
+  const d = state.detail;
+  if (!c || !d) return '';
+
+  const q = getCaseQuality(d);
+  const generatedAt = new Intl.DateTimeFormat('es', { dateStyle: 'long', timeStyle: 'short' }).format(new Date());
+  const factorName = code => state.factors.find(f => f.codigo === code)?.nombre_es || code;
+  const subfactorName = code => state.subfactors.find(s => s.codigo === code)?.nombre_es || code;
+
+  const hallazgosHtml = d.hallazgos.map((h, idx) => {
+    const barriers = d.barreras.filter(b => b.hallazgo_id === h.id);
+    const evidences = d.evidencias.filter(e => e.hallazgo_id === h.id);
+    const factors = d.factores.filter(f => f.hallazgo_id === h.id);
+
+    return `
+      <section class="report-section finding">
+        <div class="section-kicker">Hallazgo ${idx + 1} · ${esc(h.tipo)}</div>
+        <h3>${esc(h.descripcion_observable)}</h3>
+        ${h.notas ? `<p class="muted">${esc(h.notas)}</p>` : ''}
+
+        <div class="report-columns">
+          <div>
+            <h4>Barrera o control</h4>
+            ${barriers.length ? barriers.map(b => `
+              <div class="report-box">
+                <strong>${esc(b.tipo || 'Barrera')}</strong>
+                <span>Estado: ${esc(b.estado || b.relacion || 'No indicado')}</span>
+                ${b.descripcion ? `<p>${esc(b.descripcion)}</p>` : ''}
+              </div>
+            `).join('') : '<p class="muted">No se registró una barrera o control para este hallazgo.</p>'}
+          </div>
+
+          <div>
+            <h4>Evidencias</h4>
+            ${evidences.length ? evidences.map(e => `
+              <div class="report-box">
+                <strong>${esc(e.titulo || e.tipo)}</strong>
+                <span>${esc(e.tipo)} · ${esc(e.estado_archivo || 'sin archivo')}</span>
+                <p>${esc(e.aporte)}</p>
+                ${e.fuente_texto ? `<small>Fuente: ${esc(e.fuente_texto)}</small>` : ''}
+                ${e.drive_url ? `<small>Archivo: ${esc(e.drive_file_name || 'Google Drive')}</small>` : ''}
+              </div>
+            `).join('') : '<p class="muted">No se registraron evidencias para este hallazgo.</p>'}
+          </div>
+        </div>
+
+        <h4>PIF asociados</h4>
+        ${factors.length ? factors.map(f => {
+          const linkedEvidenceIds = d.factorEvidencias.filter(r => r.factor_id === f.id).map(r => r.evidencia_id);
+          const linkedEvidence = evidences.filter(e => linkedEvidenceIds.includes(e.id));
+          return `
+            <div class="pif-report-card">
+              <div class="pif-report-head">
+                <strong>${esc(f.pif_codigo)} · ${esc(factorName(f.pif_codigo))}</strong>
+                <span class="support ${esc(f.respaldo)}">${esc(reportSupportLabel(f.respaldo))}</span>
+              </div>
+              ${f.subfactor_codigo ? `<div class="subfactor">${esc(f.subfactor_codigo)} · ${esc(subfactorName(f.subfactor_codigo))}</div>` : ''}
+              ${f.justificacion ? `<p><strong>Justificación:</strong> ${esc(f.justificacion)}</p>` : ''}
+              <p><strong>Evidencia vinculada:</strong> ${linkedEvidence.length ? linkedEvidence.map(e => esc(e.titulo || e.tipo)).join(', ') : 'Ninguna'}</p>
+            </div>
+          `;
+        }).join('') : '<p class="muted">No se asociaron PIF a este hallazgo.</p>'}
+      </section>
+    `;
+  }).join('');
+
+  const interventionsHtml = (d.intervenciones || []).length
+    ? d.intervenciones.map(i => `
+        <div class="report-box">
+          <strong>${esc(i.titulo)}</strong>
+          ${i.pif_codigo ? `<span>PIF relacionado: ${esc(i.pif_codigo)} · ${esc(factorName(i.pif_codigo))}</span>` : ''}
+          ${i.descripcion ? `<p>${esc(i.descripcion)}</p>` : ''}
+          <small>Estado: ${esc((i.estado || '').replace('_',' '))}${i.responsable ? ' · Responsable: ' + esc(i.responsable) : ''}${i.indicador ? ' · Indicador: ' + esc(i.indicador) : ''}</small>
+        </div>
+      `).join('')
+    : '<p class="muted">No se registraron intervenciones.</p>';
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(c.codigo_pif)} · Informe PIF-SST</title>
+<style>
+  :root{--teal:#007b85;--navy:#00205b;--green:#70ad47;--yellow:#ffb600;--text:#334155;--muted:#64748b;--line:#dbe4ee;--bg:#f8fafc}
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef3f6;color:var(--text);font-family:Arial,Helvetica,sans-serif}
+  .toolbar{position:sticky;top:0;z-index:20;display:flex;justify-content:center;gap:10px;padding:12px;background:#172033}
+  .toolbar button{border:0;border-radius:9px;padding:10px 16px;font-weight:700;cursor:pointer}
+  .toolbar .primary{background:var(--teal);color:white}
+  .toolbar .secondary{background:white;color:var(--navy)}
+  .page{width:min(210mm,calc(100% - 24px));min-height:297mm;margin:22px auto;background:white;padding:18mm 16mm;box-shadow:0 18px 55px rgba(15,23,42,.14)}
+  .report-header{display:flex;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:3px solid var(--teal)}
+  .identity{display:flex;gap:12px;align-items:center}
+  .mark{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--teal);color:white;font-weight:900;font-size:18px}
+  .identity h1{margin:0;color:var(--navy);font-size:25px}
+  .identity p{margin:3px 0 0;color:var(--muted);font-size:12px}
+  .report-status{text-align:right}
+  .report-status strong{display:block;color:var(--navy)}
+  .report-status span{display:inline-block;margin-top:6px;padding:5px 8px;border-radius:999px;background:#edf3f6;font-size:10px;font-weight:700;text-transform:uppercase}
+  .draft-note{margin:16px 0;padding:10px 12px;border-left:4px solid var(--yellow);background:#fff9e6;font-size:11px;line-height:1.45}
+  .title-block{padding:24px 0 18px}
+  .title-block .code{color:var(--teal);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .title-block h2{margin:5px 0 8px;color:var(--navy);font-size:24px}
+  .title-block p{margin:0;line-height:1.55;font-size:12px}
+  .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 20px}
+  .meta{padding:9px;border:1px solid var(--line);border-radius:8px}
+  .meta span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;font-weight:700}
+  .meta strong{display:block;margin-top:3px;color:var(--navy);font-size:11px}
+  .summary-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:16px 0}
+  .summary-grid div{padding:9px;border-radius:8px;background:var(--bg);text-align:center}
+  .summary-grid strong{display:block;color:var(--teal);font-size:17px}
+  .summary-grid span{font-size:8px;color:var(--muted)}
+  .quality{margin:17px 0;padding:12px;border:1px solid var(--line);border-left:5px solid ${q.critical ? '#b42318' : q.review ? 'var(--yellow)' : 'var(--green)'};border-radius:8px}
+  .quality h3{margin:0 0 8px;color:var(--navy);font-size:13px}
+  .quality-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .quality-grid div{padding:7px;background:var(--bg);border-radius:6px}
+  .quality-grid strong{display:block;color:var(--navy);font-size:14px}
+  .quality-grid span{font-size:8px;color:var(--muted)}
+  .report-section{padding:17px 0;border-top:1px solid var(--line);break-inside:avoid}
+  .section-kicker{color:var(--teal);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+  .report-section h3{margin:5px 0 8px;color:var(--navy);font-size:15px}
+  .report-section h4{margin:14px 0 7px;color:var(--navy);font-size:11px}
+  .report-section p{font-size:10px;line-height:1.5}
+  .muted{color:var(--muted)}
+  .report-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .report-box,.pif-report-card{margin:6px 0;padding:9px;border:1px solid var(--line);border-radius:7px;break-inside:avoid}
+  .report-box strong,.report-box span,.report-box small{display:block}
+  .report-box strong{color:var(--navy);font-size:10px}
+  .report-box span{margin-top:2px;color:var(--muted);font-size:8px}
+  .report-box p{margin:5px 0}
+  .report-box small{color:var(--muted);font-size:8px;line-height:1.4}
+  .pif-report-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .pif-report-head strong{color:var(--navy);font-size:10px}
+  .support{padding:3px 6px;border-radius:999px;background:#edf3f6;font-size:8px;font-weight:700}
+  .support.confirmado{background:#edf7e8;color:#527f36}
+  .support.parcial{background:#fff5d9;color:#745800}
+  .support.hipotesis{background:#edf3f6;color:#5e6d7b}
+  .subfactor{margin-top:5px;color:var(--teal);font-size:9px;font-weight:700}
+  .report-footer{margin-top:24px;padding-top:12px;border-top:2px solid var(--navy);font-size:8px;color:var(--muted);line-height:1.5}
+  .report-footer strong{color:var(--navy)}
+  .source{margin-top:9px;padding:8px;background:var(--bg);border-radius:6px}
+  @page{size:A4;margin:10mm}
+  @media print{
+    body{background:white}
+    .toolbar{display:none}
+    .page{width:auto;min-height:auto;margin:0;padding:0;box-shadow:none}
+    a{color:inherit;text-decoration:none}
+  }
+  @media(max-width:700px){
+    .page{padding:20px}
+    .report-header,.report-columns{grid-template-columns:1fr;display:grid}
+    .report-status{text-align:left}
+    .meta-grid{grid-template-columns:1fr 1fr}
+    .summary-grid{grid-template-columns:repeat(3,1fr)}
+    .quality-grid{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="primary" onclick="window.print()">Imprimir / Guardar como PDF</button>
+    <button class="secondary" onclick="window.close()">Cerrar informe</button>
+  </div>
+
+  <main class="page">
+    <header class="report-header">
+      <div class="identity">
+        <div class="mark">PIF</div>
+        <div>
+          <h1>PIF-SST</h1>
+          <p>Análisis de factores que influyen en el desempeño</p>
+          <p><strong>La Movida de SST+</strong> · De la Reacción a la Prevención</p>
+        </div>
+      </div>
+      <div class="report-status">
+        <strong>Informe de análisis</strong>
+        <span>${esc(reportStateLabel(c.estado))}</span>
+      </div>
+    </header>
+
+    ${c.estado !== 'cerrado' ? '<div class="draft-note"><strong>Informe en borrador.</strong> El análisis todavía no ha sido cerrado en PIF-SST y puede cambiar.</div>' : ''}
+
+    <section class="title-block">
+      <div class="code">${esc(c.codigo_pif)}</div>
+      <h2>${esc(c.titulo)}</h2>
+      <p>${esc(c.descripcion || 'Sin descripción registrada.')}</p>
+    </section>
+
+    <section class="meta-grid">
+      <div class="meta"><span>Tipo de caso</span><strong>${esc(c.tipo)}</strong></div>
+      <div class="meta"><span>Fecha del evento</span><strong>${esc(reportDate(c.fecha_evento))}</strong></div>
+      <div class="meta"><span>Analista</span><strong>${esc(reportAnalystName())}</strong></div>
+      <div class="meta"><span>Empresa</span><strong>${esc(c.empresa || 'No indicada')}</strong></div>
+      <div class="meta"><span>Área</span><strong>${esc(c.area || 'No indicada')}</strong></div>
+      <div class="meta"><span>Actividad</span><strong>${esc(c.actividad || 'No indicada')}</strong></div>
+      <div class="meta"><span>Centro de trabajo</span><strong>${esc(c.centro_trabajo || 'No indicado')}</strong></div>
+      <div class="meta"><span>Tipo de evento</span><strong>${esc(c.tipo_evento || 'No indicado')}</strong></div>
+      <div class="meta"><span>Gravedad</span><strong>${esc(c.gravedad || 'No indicada')}</strong></div>
+    </section>
+
+    <section class="summary-grid">
+      <div><strong>${d.hallazgos.length}</strong><span>Hallazgos</span></div>
+      <div><strong>${d.evidencias.length}</strong><span>Evidencias</span></div>
+      <div><strong>${d.factores.filter(f => f.respaldo === 'confirmado').length}</strong><span>PIF confirmados</span></div>
+      <div><strong>${d.factores.filter(f => f.respaldo === 'parcial').length}</strong><span>Parciales</span></div>
+      <div><strong>${d.factores.filter(f => f.respaldo === 'hipotesis').length}</strong><span>Hipótesis</span></div>
+      <div><strong>${d.intervenciones?.length || 0}</strong><span>Intervenciones</span></div>
+    </section>
+
+    <section class="quality">
+      <h3>Control de calidad documental</h3>
+      <div class="quality-grid">
+        <div><strong>${q.confirmadosSinEvidencia}</strong><span>PIF confirmados sin evidencia</span></div>
+        <div><strong>${q.hallazgosSinBarrera}</strong><span>Hallazgos sin barrera</span></div>
+        <div><strong>${q.hipotesis + q.parciales}</strong><span>Hipótesis o parciales</span></div>
+        <div><strong>${q.evidenciasSinVincular}</strong><span>Evidencias sin vincular</span></div>
+      </div>
+    </section>
+
+    ${hallazgosHtml}
+
+    <section class="report-section">
+      <div class="section-kicker">Acciones posteriores</div>
+      <h3>Intervenciones registradas</h3>
+      ${interventionsHtml}
+    </section>
+
+    <footer class="report-footer">
+      <strong>PIF-SST · La Movida de SST+</strong><br>
+      www.movidasst.com · De la Reacción a la Prevención<br>
+      Informe generado: ${esc(generatedAt)}
+      <div class="source">
+        <strong>Referencia técnica:</strong> Energy Institute. EI 3646. <em>Research report: A proposed human factors performance influencing factors (PIFs) taxonomy.</em> First edition, August 2026. London.<br>
+        PIF-SST utiliza esta taxonomía como estructura para clasificar y analizar hallazgos. La aplicación no sustituye una metodología de investigación de incidentes ni el juicio profesional.
+      </div>
+    </footer>
+  </main>
+</body>
+</html>`;
+}
+
+function openCaseReport() {
+  const html = buildCaseReportHTML();
+  if (!html) return toast('No hay información suficiente para generar el informe.');
+  const reportWindow = window.open('', '_blank', 'noopener,noreferrer');
+  if (!reportWindow) return toast('El navegador bloqueó la ventana del informe. Habilita ventanas emergentes para PIF-SST.');
+  reportWindow.document.open();
+  reportWindow.document.write(html);
+  reportWindow.document.close();
+}
 
 async function loadAnalytics() {
   if (!state.session) return;
