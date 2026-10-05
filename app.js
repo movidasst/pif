@@ -631,7 +631,7 @@ function adminMemberCard(r, pendingMode=false) {
           ? `<button class="btn secondary admin-set-access" data-id="${r.integrante_id}" data-level="gratuito" type="button">Dejar gratuito</button>`
           : ''}
         ${r.activo
-          ? `<button class="btn danger admin-block-access" data-id="${r.integrante_id}" type="button">Bloquear</button>`
+          ? `<button class="btn danger admin-block-access" data-id="${r.integrante_id}" data-level="${r.nivel || 'gratuito'}" type="button">Bloquear</button>`
           : `<button class="btn secondary admin-set-access" data-id="${r.integrante_id}" data-level="${r.nivel || 'gratuito'}" type="button">Reactivar</button>`}
       </div>
     </article>
