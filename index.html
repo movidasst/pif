@@ -48,6 +48,10 @@
         <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22V5.5Z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22V5.5Z"/></svg>
         Taxonomía
       </button>
+      <button type="button" class="nav-btn" id="admin-nav" data-view="admin" hidden>
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.3 8.2-8 10-4.7-1.8-8-5-8-10V6l8-3Z"/><path d="M9 12h6M12 9v6"/></svg>
+        Administración
+      </button>
     </nav>
 
     <button type="button" id="account-button" class="account-button">Ingresar</button>
@@ -326,6 +330,58 @@
         </div>
       </section>
     </section>
+
+    <section id="view-admin" class="app-view">
+      <section class="section top-section">
+        <div class="view-banner admin-banner">
+          <div>
+            <span class="eyebrow light">Administración PIF-SST</span>
+            <h1>Control de accesos</h1>
+            <p>Aprueba acceso completo, mantiene acceso gratuito o bloquea usuarios de forma sencilla.</p>
+          </div>
+          <div class="banner-status" id="admin-status">Administrador</div>
+        </div>
+
+        <div id="admin-area">
+          <div class="admin-kpis" id="admin-kpis"></div>
+
+          <section class="admin-card admin-search-card">
+            <div class="admin-card-head">
+              <div>
+                <span class="eyebrow">Buscar integrante</span>
+                <h2>Dar acceso manualmente</h2>
+              </div>
+            </div>
+            <div class="admin-search">
+              <input id="admin-search-input" type="search" placeholder="Nombre, apellido o cédula">
+              <button class="btn primary" type="button" id="admin-search-button">Buscar</button>
+            </div>
+            <div id="admin-search-results" class="admin-list"></div>
+          </section>
+
+          <section class="admin-card">
+            <div class="admin-card-head">
+              <div>
+                <span class="eyebrow">Solicitudes</span>
+                <h2>Pendientes de aprobación</h2>
+              </div>
+            </div>
+            <div id="admin-pending-list" class="admin-list"></div>
+          </section>
+
+          <section class="admin-card">
+            <div class="admin-card-head">
+              <div>
+                <span class="eyebrow">Usuarios PIF-SST</span>
+                <h2>Accesos registrados</h2>
+              </div>
+            </div>
+            <div id="admin-access-list" class="admin-list"></div>
+          </section>
+        </div>
+      </section>
+    </section>
+
   </main>
 
   <section class="community-ctas" aria-label="Enlaces de La Movida de SST+">
