@@ -514,7 +514,7 @@ async function createDemoCase() {
         tipo: 'Entrevista',
         titulo: 'Evidencia DEMO · Tiempo disponible',
         aporte: 'Para fines del ejercicio se considera confirmado que guardar la herramienta en el bolsillo era percibido como más rápido que abrir y cerrar repetidamente la bolsa de herramientas.',
-        fuente_texto: 'Caso de aprendizaje basado en el ejemplo de EI 3646',
+        fuente_texto: 'Caso de aprendizaje PIF-SST',
         proveedor_archivo: 'sin_archivo',
         estado_archivo: 'sin_archivo'
       },
@@ -524,7 +524,7 @@ async function createDemoCase() {
         tipo: 'Documento',
         titulo: 'Evidencia DEMO · Mensajes del liderazgo',
         aporte: 'Para fines del ejercicio se considera documentado que existían mensajes de liderazgo que enfatizaban completar el proyecto dentro del tiempo previsto.',
-        fuente_texto: 'Caso de aprendizaje basado en el ejemplo de EI 3646',
+        fuente_texto: 'Caso de aprendizaje PIF-SST',
         proveedor_archivo: 'sin_archivo',
         estado_archivo: 'sin_archivo'
       }
