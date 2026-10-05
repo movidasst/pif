@@ -1413,8 +1413,9 @@ function buildCaseReportHTML() {
 function openCaseReport() {
   const html = buildCaseReportHTML();
   if (!html) return toast('No hay información suficiente para generar el informe.');
-  const reportWindow = window.open('', '_blank', 'noopener,noreferrer');
+  const reportWindow = window.open('', '_blank');
   if (!reportWindow) return toast('El navegador bloqueó la ventana del informe. Habilita ventanas emergentes para PIF-SST.');
+  reportWindow.opener = null;
   reportWindow.document.open();
   reportWindow.document.write(html);
   reportWindow.document.close();
