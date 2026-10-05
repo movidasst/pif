@@ -21,6 +21,14 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabasePublishableKey);
+const adminSupabase = createClient(CONFIG.supabaseUrl, CONFIG.supabasePublishableKey, {
+  auth: {
+    storageKey: 'pif-sst-admin-auth',
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
+  }
+});
 
 const state = {
   categories: [],
@@ -46,6 +54,7 @@ const state = {
   simulatorFeedback: null,
   simulatorCalibration: [],
   access: null,
+  adminSession: null,
   isAdmin: false,
   adminAccessRows: [],
   adminSearchRows: []
@@ -69,11 +78,10 @@ function fmtDate(value) {
 }
 
 function hasFullAccess() {
-  return Boolean(state.isAdmin || (state.access?.activo && state.access?.nivel === 'completo'));
+  return Boolean(state.access?.activo && state.access?.nivel === 'completo');
 }
 
 function accessLabel() {
-  if (state.isAdmin) return 'Administrador';
   if (state.access?.nivel === 'completo' && state.access?.activo) return 'Acceso completo';
   return 'Acceso gratuito';
 }
@@ -81,7 +89,6 @@ function accessLabel() {
 async function loadAccessStatus() {
   if (!state.session) {
     state.access = null;
-    state.isAdmin = false;
     return;
   }
 
@@ -89,13 +96,11 @@ async function loadAccessStatus() {
   if (error) {
     console.error(error);
     state.access = null;
-    state.isAdmin = false;
     return;
   }
 
   const row = Array.isArray(data) ? data[0] : data;
   state.access = row || null;
-  state.isAdmin = Boolean(row?.es_admin);
 }
 
 function paidGateMarkup(featureName, description) {
@@ -172,7 +177,7 @@ function showView(name) {
     if (state.session && hasFullAccess()) loadAnalytics();
   }
   if (name === 'admin') {
-    if (!state.isAdmin) {
+    if (!state.isAdmin || !state.adminSession) {
       toast('Acceso de administrador requerido.');
       return showView('inicio');
     }
@@ -265,15 +270,10 @@ $('#taxonomy-search').addEventListener('input', e => {
 function renderAccount() {
   const button = $('#account-button');
   if (state.session) {
-    if (state.isAdmin) {
-      button.textContent = 'Administrador';
-      button.title = 'Sesión administrativa activa';
-    } else {
-      const meta = state.session.user?.user_metadata || {};
-      const label = [meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Mi cuenta';
-      button.textContent = label.length > 20 ? label.slice(0, 18) + '…' : label;
-      button.title = accessLabel();
-    }
+    const meta = state.session.user?.user_metadata || {};
+    const label = [meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Mi cuenta';
+    button.textContent = label.length > 20 ? label.slice(0, 18) + '…' : label;
+    button.title = accessLabel();
   } else {
     button.textContent = 'Ingresar';
     button.title = '';
@@ -281,8 +281,10 @@ function renderAccount() {
 
   const adminButton = $('#admin-button');
   if (adminButton) {
-    adminButton.classList.toggle('active', state.isAdmin);
-    adminButton.title = state.isAdmin ? 'Abrir administración PIF-SST' : 'Acceso administrativo';
+    adminButton.classList.toggle('active', Boolean(state.adminSession && state.isAdmin));
+    adminButton.title = state.adminSession && state.isAdmin
+      ? 'Abrir administración PIF-SST'
+      : 'Acceso administrativo';
   }
 
   renderCasesGate();
@@ -469,24 +471,17 @@ async function adminLogin(event) {
   if (errorBox) errorBox.hidden = true;
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await adminSupabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    const check = await supabase.rpc('admin_gestion_resumen');
+    const check = await adminSupabase.rpc('admin_gestion_resumen');
     if (check.error) {
-      await supabase.auth.signOut();
+      await adminSupabase.auth.signOut();
       throw new Error('La cuenta existe, pero no tiene permiso administrativo.');
     }
 
-    state.session = data.session;
-    state.member = null;
-    localStorage.removeItem('pif_member');
-
-    await loadAccessStatus();
-    if (!state.isAdmin) {
-      await supabase.auth.signOut();
-      throw new Error('La cuenta no tiene permisos de administración en PIF-SST.');
-    }
+    state.adminSession = data.session;
+    state.isAdmin = true;
 
     closeModal();
     renderAccount();
@@ -495,6 +490,8 @@ async function adminLogin(event) {
     toast('Sesión administrativa activa.');
   } catch (error) {
     console.error(error);
+    state.adminSession = null;
+    state.isAdmin = false;
     if (errorBox) {
       errorBox.hidden = false;
       errorBox.textContent = error.message || 'No fue posible iniciar sesión administrativa.';
@@ -507,6 +504,17 @@ async function adminLogin(event) {
       button.textContent = 'Ingresar a administración';
     }
   }
+}
+
+async function adminLogout() {
+  await adminSupabase.auth.signOut();
+  state.adminSession = null;
+  state.isAdmin = false;
+  state.adminAccessRows = [];
+  state.adminSearchRows = [];
+  renderAccount();
+  showView('inicio');
+  toast('Sesión administrativa cerrada.');
 }
 
 function showLogin() {
@@ -620,9 +628,6 @@ async function logout() {
   state.simulatorSelected = null;
   state.simulatorFeedback = null;
   state.access = null;
-  state.isAdmin = false;
-  state.adminAccessRows = [];
-  state.adminSearchRows = [];
   localStorage.removeItem('pif_member');
   renderAccount();
   $('#cases-list').innerHTML = '';
@@ -636,7 +641,7 @@ async function logout() {
 }
 
 $('#admin-button')?.addEventListener('click', () => {
-  if (state.isAdmin && state.session) {
+  if (state.isAdmin && state.adminSession) {
     showView('admin');
     return;
   }
@@ -648,24 +653,20 @@ $('#account-button').addEventListener('click', () => {
 
   const meta = state.session.user?.user_metadata || {};
   const pending = state.access?.solicitud_pago === 'pendiente';
-  const accountName = state.isAdmin
-    ? (state.session.user?.email || 'Administrador')
-    : ([meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Integrante');
+  const accountName = [meta.nombres, meta.apellidos].filter(Boolean).join(' ') || 'Integrante';
 
   openModal('Mi cuenta', `
     <div class="account-access-card">
       <span class="eyebrow">PIF-SST</span>
       <h3>${esc(accountName)}</h3>
       <div class="account-access-level ${hasFullAccess() ? 'full' : 'free'}">${esc(accessLabel())}</div>
-      <p>${state.isAdmin
-        ? 'Tu sesión tiene permisos de administración y acceso completo.'
-        : hasFullAccess()
-          ? 'Tienes habilitados Casos, Preventivo, Analítica, informes y carga de evidencias.'
-          : 'Tu acceso gratuito incluye Taxonomía y Simulador / Laboratorio.'}</p>
+      <p>${hasFullAccess()
+        ? 'Tienes habilitados Casos, Preventivo, Analítica, informes y carga de evidencias.'
+        : 'Tu acceso gratuito incluye Taxonomía y Simulador / Laboratorio.'}</p>
     </div>
 
     <div class="actions account-actions">
-      ${!state.isAdmin && !hasFullAccess()
+      ${!hasFullAccess()
         ? pending
           ? '<span class="access-request-state">Solicitud de acceso completo pendiente</span>'
           : '<button class="btn primary" type="button" id="account-request-full">Solicitar acceso completo</button>'
@@ -688,7 +689,7 @@ $('#analytics-login')?.addEventListener('click', showLogin);
 
 async function loadAdminAccess() {
   if (!state.isAdmin) return;
-  const { data, error } = await supabase.rpc('pif_admin_list_access');
+  const { data, error } = await adminSupabase.rpc('pif_admin_list_access');
   if (error) {
     console.error(error);
     return toast('No fue posible cargar la administración.');
@@ -765,7 +766,7 @@ async function setAdminAccess(integranteId, nivel, activo=true) {
   const label = !activo ? 'bloquear este acceso' : nivel === 'completo' ? 'aprobar acceso completo' : 'dejar acceso gratuito';
   if (!confirm('¿Quieres ' + label + '?')) return;
 
-  const { error } = await supabase.rpc('pif_admin_set_access', {
+  const { error } = await adminSupabase.rpc('pif_admin_set_access', {
     p_integrante_id: integranteId,
     p_nivel: nivel,
     p_activo: activo,
@@ -789,7 +790,7 @@ async function searchAdminMembers() {
   button.disabled = true;
   button.textContent = 'Buscando…';
 
-  const { data, error } = await supabase.rpc('pif_admin_search_integrantes', { p_query: q });
+  const { data, error } = await adminSupabase.rpc('pif_admin_search_integrantes', { p_query: q });
 
   button.disabled = false;
   button.textContent = 'Buscar';
@@ -810,6 +811,7 @@ $('#admin-search-button')?.addEventListener('click', searchAdminMembers);
 $('#admin-search-input')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') searchAdminMembers();
 });
+$('#admin-logout-button')?.addEventListener('click', adminLogout);
 
 async function loadCases() {
   if (!state.session || !hasFullAccess()) return;
@@ -3152,6 +3154,40 @@ async function closeCase() {
   toast('Análisis cerrado.');
 }
 
+async function initAdminAuth() {
+  const { data } = await adminSupabase.auth.getSession();
+  const session = data.session || null;
+
+  if (!session) {
+    state.adminSession = null;
+    state.isAdmin = false;
+    renderAccount();
+    return;
+  }
+
+  const check = await adminSupabase.rpc('admin_gestion_resumen');
+  if (check.error) {
+    await adminSupabase.auth.signOut();
+    state.adminSession = null;
+    state.isAdmin = false;
+  } else {
+    state.adminSession = session;
+    state.isAdmin = true;
+  }
+
+  adminSupabase.auth.onAuthStateChange((_event, nextSession) => {
+    state.adminSession = nextSession;
+    if (!nextSession) {
+      state.isAdmin = false;
+      state.adminAccessRows = [];
+      state.adminSearchRows = [];
+    }
+    renderAccount();
+  });
+
+  renderAccount();
+}
+
 async function initAuth() {
   const { data } = await supabase.auth.getSession();
   state.session = data.session || null;
@@ -3164,7 +3200,6 @@ async function initAuth() {
     if (session) await loadAccessStatus();
     else {
       state.access = null;
-      state.isAdmin = false;
     }
     renderAccount();
   });
@@ -3187,9 +3222,10 @@ async function init() {
   }
 
   await initAuth();
+  await initAdminAuth();
 
   if (validTarget === 'admin') {
-    if (state.isAdmin) {
+    if (state.isAdmin && state.adminSession) {
       showView('admin');
       await loadAdminAccess();
     } else {
