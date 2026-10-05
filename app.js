@@ -79,6 +79,7 @@ function openModal(title, html, eyebrow = 'PIF-SST') {
 function closeModal() {
   $('#modal').hidden = true;
   $('#modal-body').innerHTML = '';
+  $('.modal-box')?.classList.remove('login-modal');
 }
 $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
@@ -237,26 +238,62 @@ function renderAnalyticsGate() {
 
 function showLogin() {
   openModal('Ingresar a PIF-SST', `
-    <p class="help">Usa el documento y el código de tu credencial de integrante de La Movida de SST+.</p>
-    <div class="form-grid">
-      <label class="field">
-        <span>País (ISO2)</span>
-        <input id="login-country" value="VE" maxlength="2" autocomplete="country">
-      </label>
-      <label class="field">
-        <span>Documento o cédula</span>
-        <input id="login-document" inputmode="numeric" autocomplete="username">
-      </label>
-      <label class="field wide">
-        <span>Código de integrante</span>
-        <input id="login-code" maxlength="8" autocomplete="current-password">
-      </label>
+    <div class="access-brand-panel">
+      <div class="access-logo-wrap">
+        <img src="https://raw.githubusercontent.com/movidasst/principal/main/logo-oficial-movida-sst-plus.png" alt="La Movida de SST+">
+      </div>
+      <p>Ingresa con los datos de tu credencial de integrante para acceder a tus análisis, simulador y herramientas PIF-SST.</p>
     </div>
-    <div class="actions">
-      <button class="btn primary" id="login-submit" type="button">Ingresar</button>
-      <a class="btn secondary" href="https://registro.movidasst.com" target="_blank" rel="noopener">Registrarme</a>
+
+    <div class="access-form">
+      <label class="access-field">
+        <span>País de tu credencial</span>
+        <select id="login-country" autocomplete="country">
+          <option value="VE" selected>Venezuela</option>
+          <option value="PE">Perú</option>
+          <option value="CO">Colombia</option>
+          <option value="EC">Ecuador</option>
+          <option value="MX">México</option>
+          <option value="PY">Paraguay</option>
+          <option value="AR">Argentina</option>
+          <option value="BO">Bolivia</option>
+          <option value="CR">Costa Rica</option>
+          <option value="ES">España</option>
+          <option value="UY">Uruguay</option>
+          <option value="DO">República Dominicana</option>
+          <option value="BR">Brasil</option>
+          <option value="GT">Guatemala</option>
+          <option value="HN">Honduras</option>
+          <option value="SV">El Salvador</option>
+          <option value="CL">Chile</option>
+          <option value="IT">Italia</option>
+          <option value="NI">Nicaragua</option>
+          <option value="PA">Panamá</option>
+          <option value="CU">Cuba</option>
+          <option value="US">Estados Unidos</option>
+        </select>
+      </label>
+
+      <label class="access-field">
+        <span>Cédula o documento</span>
+        <input id="login-document" autocomplete="username" inputmode="numeric" placeholder="Escribe tu documento">
+      </label>
+
+      <label class="access-field">
+        <span>Código de integrante</span>
+        <input id="login-code" autocomplete="current-password" maxlength="8" placeholder="Escribe tu código">
+      </label>
+
+      <button class="btn primary access-submit" id="login-submit" type="button">Ingresar y comenzar</button>
+
+      <p class="access-register">
+        ¿No tienes credencial?
+        <a href="https://registro.movidasst.com/" target="_blank" rel="noopener">Regístrate en registro.movidasst.com</a>
+      </p>
     </div>
   `, 'Acceso de integrante');
+
+  $('.modal-box')?.classList.add('login-modal');
   $('#login-submit').addEventListener('click', login);
   $('#login-code').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 }
@@ -293,7 +330,7 @@ async function login() {
   } finally {
     if (button) {
       button.disabled = false;
-      button.textContent = 'Ingresar';
+      button.textContent = 'Ingresar y comenzar';
     }
   }
 }
