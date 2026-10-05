@@ -3,86 +3,145 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#007b85">
-  <meta name="description" content="PIF-SST. Análisis de factores que influyen en el desempeño.">
-  <title>PIF-SST | Análisis de factores que influyen en el desempeño</title>
+  <meta name="theme-color" content="#00205b">
+  <meta name="description" content="PIF-SST. Análisis de factores que influyen en el desempeño. La Movida de SST+.">
+  <title>PIF-SST | La Movida de SST+</title>
+  <link rel="preconnect" href="https://raw.githubusercontent.com">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#inicio" data-view="inicio" aria-label="PIF-SST">
-      <span class="brand-mark">PIF</span>
-      <span>
-        <strong>PIF-SST</strong>
-        <small>Análisis de factores que influyen en el desempeño</small>
+  <header class="topbar brand-topbar">
+    <a class="brand brand-rich" href="#inicio" data-view="inicio" aria-label="PIF-SST">
+      <img class="brand-logo" src="https://raw.githubusercontent.com/movidasst/principal/main/logo-movida-sst-plus.svg" alt="La Movida de SST+">
+      <span class="brand-copy">
+        <strong>LA MOVIDA DE SST<span class="plus">+</span></strong>
+        <small>DE LA REACCIÓN A LA PREVENCIÓN</small>
       </span>
     </a>
 
-    <nav class="main-nav" aria-label="Navegación principal">
-      <button type="button" class="nav-btn active" data-view="inicio">Inicio</button>
-      <button type="button" class="nav-btn" data-view="taxonomia">Taxonomía</button>
-      <button type="button" class="nav-btn" data-view="casos">Mis casos</button>
-      <button type="button" class="nav-btn" data-view="preventivo">Preventivo</button>
-      <button type="button" class="nav-btn" data-view="analitica">Analítica</button>
+    <nav class="main-nav rich-nav" aria-label="Navegación principal">
+      <button type="button" class="nav-btn active" data-view="inicio"><span class="nav-glyph">⌂</span>Inicio</button>
+      <button type="button" class="nav-btn" data-view="casos"><span class="nav-glyph">▤</span>Casos</button>
+      <button type="button" class="nav-btn" data-view="simulador"><span class="nav-glyph">⚗</span>Simulador</button>
+      <button type="button" class="nav-btn" data-view="preventivo"><span class="nav-glyph">◆</span>Preventivo</button>
+      <button type="button" class="nav-btn" data-view="analitica"><span class="nav-glyph">▥</span>Analítica</button>
+      <button type="button" class="nav-btn" data-view="taxonomia"><span class="nav-glyph">◫</span>Taxonomía</button>
     </nav>
 
     <button type="button" id="account-button" class="account-button">Ingresar</button>
   </header>
 
-  <main class="shell">
+  <main class="shell shell-rich">
     <section id="view-inicio" class="app-view active">
-      <div class="hero">
-        <div class="hero-copy">
-          <span class="eyebrow">EI 3646 · primera edición · agosto 2026</span>
-          <h1>PIF-SST</h1>
-          <p class="lead">Herramienta para consultar y aplicar una taxonomía de factores que influyen en el desempeño al analizar hallazgos de investigaciones de incidentes en Seguridad y Salud en el Trabajo.</p>
-          <div class="actions">
-            <button class="btn primary" type="button" data-view="casos">Analizar un caso</button>
-            <button class="btn secondary" type="button" data-view="taxonomia">Consultar taxonomía</button>
+      <div class="home-hero">
+        <div class="home-hero-copy">
+          <span class="product-kicker">PIF-SST</span>
+          <h1>PIF-<span>SST</span><b>+</b></h1>
+          <h2>Análisis de factores que influyen en el desempeño</h2>
+          <div class="hero-slogan">De la Reacción a la Prevención</div>
+          <p>Una herramienta para aprender, analizar, documentar y convertir hallazgos en decisiones de prevención con mejor trazabilidad.</p>
+          <div class="hero-points">
+            <span>✓ Casos documentados</span>
+            <span>✓ Criterio técnico</span>
+            <span>✓ Evidencia y barreras</span>
+          </div>
+          <div class="actions hero-actions">
+            <button class="btn primary big" type="button" data-view="casos">Analizar un caso</button>
+            <button class="btn demo big" type="button" data-view="simulador">Abrir simulador</button>
           </div>
         </div>
 
-        <div class="hero-panel">
-          <div class="metric"><strong id="home-categories">7</strong><span>categorías</span></div>
-          <div class="metric"><strong id="home-factors">38</strong><span>PIF principales</span></div>
-          <div class="metric"><strong id="home-subfactors">—</strong><span>subfactores y ejemplos</span></div>
+        <div class="home-hero-panel">
+          <div class="hero-panel-brand">
+            <img src="https://raw.githubusercontent.com/movidasst/principal/main/logo-movida-sst-plus.svg" alt="" aria-hidden="true">
+            <div>
+              <span>LA MOVIDA DE SST+</span>
+              <small>Comunidad de aprendizaje colaborativo</small>
+            </div>
+          </div>
+          <div class="hero-panel-title">PIF-SST en acción</div>
+          <div class="hero-panel-grid">
+            <button type="button" data-view="casos"><strong>01</strong><span>Casos</span><small>Hallazgo · Barrera · Evidencia · PIF</small></button>
+            <button type="button" data-view="simulador"><strong>02</strong><span>Simulador</span><small>Practica y calibra tu criterio</small></button>
+            <button type="button" data-view="preventivo"><strong>03</strong><span>Preventivo</span><small>Revisa condiciones antes del trabajo</small></button>
+            <button type="button" data-view="analitica"><strong>04</strong><span>Analítica</span><small>Identifica patrones recurrentes</small></button>
+          </div>
+          <div class="hero-panel-metrics">
+            <div><strong id="home-categories">7</strong><span>categorías</span></div>
+            <div><strong id="home-factors">38</strong><span>PIF</span></div>
+            <div><strong id="home-subfactors">—</strong><span>subfactores</span></div>
+          </div>
         </div>
       </div>
 
-      <div class="notice">
+      <section class="home-modules">
+        <article class="module-card blue">
+          <div class="module-icon">▤</div>
+          <h3>Casos</h3>
+          <p>Documenta hallazgos, barreras, evidencias, PIF e intervenciones.</p>
+          <button type="button" data-view="casos">Abrir →</button>
+        </article>
+        <article class="module-card purple">
+          <div class="module-icon">⚗</div>
+          <h3>Simulador / Laboratorio</h3>
+          <p>Practica con escenarios guiados y compara tu criterio con una referencia técnica.</p>
+          <button type="button" data-view="simulador">Practicar →</button>
+        </article>
+        <article class="module-card yellow">
+          <div class="module-icon">◎</div>
+          <h3>Clasificación PIF</h3>
+          <p>Consulta los factores y sus ejemplos de forma rápida durante el análisis.</p>
+          <button type="button" data-view="taxonomia">Consultar →</button>
+        </article>
+        <article class="module-card green">
+          <div class="module-icon">◆</div>
+          <h3>Preventivo</h3>
+          <p>Registra condiciones que pueden favorecer o dificultar el desempeño antes de una tarea.</p>
+          <button type="button" data-view="preventivo">Revisar →</button>
+        </article>
+        <article class="module-card teal">
+          <div class="module-icon">▥</div>
+          <h3>Analítica</h3>
+          <p>Observa frecuencias, categorías, barreras y combinaciones recurrentes.</p>
+          <button type="button" data-view="analitica">Explorar →</button>
+        </article>
+      </section>
+
+      <div class="notice home-notice">
         <strong>Criterio de uso</strong>
-        <p>PIF-SST clasifica hallazgos respaldados por evidencia. No sustituye una metodología de investigación de incidentes y no convierte la taxonomía en una lista de chequeo para asignar causas.</p>
+        <p>PIF-SST ayuda a estructurar información y apoyar el análisis profesional. No asigna automáticamente causas ni sustituye la metodología de investigación, la evaluación de riesgos o el juicio técnico.</p>
       </div>
 
-      <section class="section">
+      <section class="section home-flow">
         <div class="section-heading">
           <div>
             <span class="eyebrow">Flujo de trabajo</span>
-            <h2>Cómo se documenta un análisis</h2>
+            <h2>Una secuencia clara para documentar mejor</h2>
           </div>
         </div>
         <div class="flow-grid">
-          <article class="flow-card"><span>1</span><h3>Caso</h3><p>Identifica el evento y su contexto.</p></article>
-          <article class="flow-card"><span>2</span><h3>Hallazgo</h3><p>Describe una acción, decisión o condición observable.</p></article>
-          <article class="flow-card"><span>3</span><h3>Evidencia</h3><p>Registra qué información respalda el hallazgo.</p></article>
-          <article class="flow-card"><span>4</span><h3>PIF</h3><p>Selecciona el factor y justifica por qué aplica.</p></article>
-          <article class="flow-card"><span>5</span><h3>Intervención</h3><p>Define acciones a partir de patrones comprobados.</p></article>
-          <article class="flow-card"><span>6</span><h3>Informe</h3><p>Genera un reporte profesional en PDF del análisis documentado.</p></article>
+          <article class="flow-card"><span>1</span><h3>Caso</h3><p>Contexto del evento o situación.</p></article>
+          <article class="flow-card"><span>2</span><h3>Hallazgo</h3><p>Acción, decisión o condición observable.</p></article>
+          <article class="flow-card"><span>3</span><h3>Evidencia</h3><p>Información que respalda el análisis.</p></article>
+          <article class="flow-card"><span>4</span><h3>PIF</h3><p>Factor pertinente y justificación.</p></article>
+          <article class="flow-card"><span>5</span><h3>Intervención</h3><p>Acciones asociadas a lo identificado.</p></article>
+          <article class="flow-card"><span>6</span><h3>Informe</h3><p>Reporte profesional del caso.</p></article>
         </div>
       </section>
     </section>
 
     <section id="view-taxonomia" class="app-view">
       <section class="section top-section">
-        <div class="section-heading">
+        <div class="view-banner compact-banner">
           <div>
-            <span class="eyebrow">Taxonomía</span>
-            <h2>Factores que influyen en el desempeño</h2>
+            <span class="eyebrow light">Taxonomía PIF-SST</span>
+            <h1>Factores que influyen en el desempeño</h1>
+            <p>Consulta los factores, definiciones, orientaciones y ejemplos disponibles en la aplicación.</p>
           </div>
-          <div id="taxonomy-status" class="status-text">Cargando datos…</div>
+          <div id="taxonomy-status" class="banner-status">Cargando datos…</div>
         </div>
 
-        <div class="filters">
+        <div class="filters rich-filters">
           <label class="field">
             <span>Buscar</span>
             <input id="taxonomy-search" type="search" placeholder="Ej.: fatiga, supervisión, ruido, procedimiento…" autocomplete="off">
@@ -97,60 +156,93 @@
 
     <section id="view-casos" class="app-view">
       <section class="section top-section">
-        <div id="cases-gate" class="gate-card">
+        <div id="cases-gate" class="gate-card rich-gate">
+          <div class="gate-icon">▤</div>
           <span class="eyebrow">Acceso de integrante</span>
           <h2>Mis análisis PIF-SST</h2>
-          <p>Para crear, conservar y revisar casos debes ingresar con tu documento y código de integrante de La Movida de SST+.</p>
+          <p>Ingresa con tu documento y código de integrante para crear, conservar y revisar tus casos.</p>
           <button class="btn primary" type="button" id="gate-login">Ingresar</button>
         </div>
 
         <div id="cases-area" hidden>
-          <div class="section-heading">
+          <div class="view-banner">
             <div>
-              <span class="eyebrow">Casos</span>
-              <h2>Mis análisis PIF-SST</h2>
+              <span class="eyebrow light">Casos</span>
+              <h1>Mis análisis PIF-SST</h1>
+              <p>Documenta cada caso con trazabilidad entre hallazgos, barreras, evidencias, PIF e intervenciones.</p>
             </div>
             <div class="case-actions">
               <button class="btn demo" type="button" id="demo-case-button">⚡ Crear caso DEMO</button>
-              <button class="btn primary" type="button" id="new-case-button">+ Nuevo caso</button>
+              <button class="btn white" type="button" id="new-case-button">+ Nuevo caso</button>
             </div>
           </div>
 
-          <div id="cases-summary" class="summary-strip"></div>
+          <div id="cases-summary" class="summary-strip rich-summary"></div>
           <div id="cases-list" class="case-list"></div>
           <div id="case-workspace"></div>
         </div>
       </section>
     </section>
 
+    <section id="view-simulador" class="app-view">
+      <section class="section top-section">
+        <div id="simulator-gate" class="gate-card rich-gate">
+          <div class="gate-icon">⚗</div>
+          <span class="eyebrow">Simulador / Laboratorio PIF-SST</span>
+          <h2>Practica tu criterio de análisis</h2>
+          <p>Resuelve casos guiados paso a paso y compara tus decisiones con criterios de referencia.</p>
+          <button class="btn primary" type="button" id="simulator-login">Ingresar y comenzar</button>
+        </div>
+
+        <div id="simulator-area" hidden>
+          <div class="simulator-hero">
+            <div>
+              <span class="eyebrow light">Simulador / Laboratorio PIF-SST</span>
+              <h1>Aprende a separar hechos, barreras, evidencias y factores</h1>
+              <p>Los ejercicios no buscan adivinar una “causa correcta”. Buscan entrenar cómo documentar lo observable y sostener una clasificación con evidencia.</p>
+            </div>
+            <div class="simulator-hero-badge">
+              <span>METODOLOGÍA PRÁCTICA</span>
+              <strong>De la Reacción a la Prevención</strong>
+            </div>
+          </div>
+
+          <div id="simulator-summary" class="simulator-summary"></div>
+          <div id="simulator-list" class="simulator-list"></div>
+          <div id="simulator-workspace"></div>
+        </div>
+      </section>
+    </section>
 
     <section id="view-preventivo" class="app-view">
       <section class="section top-section">
-        <div id="preventive-gate" class="gate-card">
+        <div id="preventive-gate" class="gate-card rich-gate">
+          <div class="gate-icon">◆</div>
           <span class="eyebrow">PIF-SST preventivo</span>
           <h2>Análisis de condiciones antes del trabajo</h2>
-          <p>Usa la taxonomía PIF como lente para documentar condiciones que pueden favorecer o dificultar el desempeño antes de una tarea crítica, durante una revisión previa o en una gestión del cambio.</p>
+          <p>Documenta condiciones que pueden favorecer o dificultar el desempeño antes de una tarea crítica, durante una revisión previa o en una gestión del cambio.</p>
           <button class="btn primary" type="button" id="preventive-login">Ingresar</button>
         </div>
 
         <div id="preventive-area" hidden>
-          <div class="preventive-scope">
-            <strong>Aplicación preventiva ampliada</strong>
-            <p>EI 3646 fue desarrollado para clasificar hallazgos de investigaciones de incidentes. Este módulo utiliza el concepto PIF y la misma taxonomía como apoyo preventivo. No es un uso formalmente validado por EI 3646 y no sustituye la evaluación de riesgos, permisos de trabajo, procedimientos ni la decisión profesional sobre si una tarea puede ejecutarse.</p>
-          </div>
-
-          <div class="section-heading">
+          <div class="view-banner">
             <div>
-              <span class="eyebrow">Análisis preventivo</span>
-              <h2>Mis revisiones de tarea</h2>
+              <span class="eyebrow light">Preventivo</span>
+              <h1>Mis revisiones de tarea</h1>
+              <p>Registra condiciones relevantes para la tarea y define acciones antes de que se conviertan en problemas.</p>
             </div>
             <div class="case-actions">
               <button class="btn demo" type="button" id="preventive-demo-button">⚡ DEMO preventivo</button>
-              <button class="btn primary" type="button" id="new-preventive-button">+ Nuevo análisis</button>
+              <button class="btn white" type="button" id="new-preventive-button">+ Nuevo análisis</button>
             </div>
           </div>
 
-          <div id="preventive-summary" class="summary-strip"></div>
+          <div class="preventive-scope">
+            <strong>Enfoque preventivo PIF-SST</strong>
+            <p>Este módulo usa los PIF para ordenar condiciones del contexto de trabajo que pueden influir en el desempeño. No sustituye la evaluación de riesgos, permisos de trabajo, procedimientos ni la decisión profesional sobre si una tarea puede ejecutarse.</p>
+          </div>
+
+          <div id="preventive-summary" class="summary-strip rich-summary"></div>
           <div id="preventive-list" class="case-list"></div>
           <div id="preventive-workspace"></div>
         </div>
@@ -159,89 +251,85 @@
 
     <section id="view-analitica" class="app-view">
       <section class="section top-section">
-        <div id="analytics-gate" class="gate-card">
+        <div id="analytics-gate" class="gate-card rich-gate">
+          <div class="gate-icon">▥</div>
           <span class="eyebrow">Analítica PIF-SST</span>
           <h2>Tendencias de mis casos</h2>
-          <p>Ingresa como integrante para analizar tus casos. Los casos de aprendizaje y DEMO se excluyen de los indicadores de casos reales.</p>
+          <p>Ingresa para analizar tus casos. Los casos de aprendizaje y DEMO se excluyen de los indicadores de casos reales.</p>
           <button class="btn primary" type="button" id="analytics-login">Ingresar</button>
         </div>
 
         <div id="analytics-area" hidden>
-          <div class="section-heading">
+          <div class="view-banner">
             <div>
-              <span class="eyebrow">Analítica</span>
-              <h2>Factores que aparecen en mis casos</h2>
+              <span class="eyebrow light">Analítica</span>
+              <h1>Factores que aparecen en mis casos</h1>
+              <p>Frecuencias y asociaciones para orientar preguntas y decisiones. La coaparición no equivale por sí sola a causalidad.</p>
             </div>
-            <div class="status-text" id="analytics-status">Sin datos cargados</div>
+            <div class="banner-status" id="analytics-status">Sin datos cargados</div>
           </div>
 
           <div id="analytics-summary" class="analytics-summary"></div>
 
           <div class="analytics-grid">
             <article class="analytics-card">
-              <div class="analytics-card-head">
-                <div>
-                  <span class="eyebrow">PIF confirmados</span>
-                  <h3>Factores más frecuentes</h3>
-                </div>
-              </div>
+              <div class="analytics-card-head"><div><span class="eyebrow">PIF confirmados</span><h3>Factores más frecuentes</h3></div></div>
               <div id="analytics-top-pif" class="bar-list"></div>
             </article>
-
             <article class="analytics-card">
-              <div class="analytics-card-head">
-                <div>
-                  <span class="eyebrow">Categorías</span>
-                  <h3>Distribución</h3>
-                </div>
-              </div>
+              <div class="analytics-card-head"><div><span class="eyebrow">Categorías</span><h3>Distribución</h3></div></div>
               <div id="analytics-categories" class="bar-list"></div>
             </article>
           </div>
 
           <div class="analytics-grid">
             <article class="analytics-card">
-              <div class="analytics-card-head">
-                <div>
-                  <span class="eyebrow">Barreras</span>
-                  <h3>Estado de controles registrados</h3>
-                </div>
-              </div>
+              <div class="analytics-card-head"><div><span class="eyebrow">Barreras</span><h3>Estado de controles registrados</h3></div></div>
               <div id="analytics-barriers" class="bar-list"></div>
             </article>
-
             <article class="analytics-card">
-              <div class="analytics-card-head">
-                <div>
-                  <span class="eyebrow">Combinaciones</span>
-                  <h3>Pares de PIF recurrentes</h3>
-                </div>
-              </div>
+              <div class="analytics-card-head"><div><span class="eyebrow">Combinaciones</span><h3>Pares de PIF recurrentes</h3></div></div>
               <div id="analytics-combinations" class="mini-list"></div>
             </article>
           </div>
 
-          <div class="analytics-note">
-            <strong>Cómo leer estos datos:</strong> PIF-SST muestra frecuencia y coaparición de factores codificados en tus casos. Una asociación estadística no equivale por sí sola a causalidad.
-          </div>
+          <div class="analytics-note"><strong>Cómo leer estos datos:</strong> PIF-SST muestra frecuencia y coaparición de factores codificados en tus casos. Una asociación estadística no equivale por sí sola a causalidad.</div>
         </div>
       </section>
     </section>
-
   </main>
 
-  <footer>
-    <div><strong>La Movida de SST+</strong> · De la Reacción a la Prevención</div>
-    <a href="https://www.movidasst.com" target="_blank" rel="noopener">www.movidasst.com</a>
+  <section class="community-ctas" aria-label="Enlaces de La Movida de SST+">
+    <a class="community-card whatsapp" href="https://whatsapp.com/channel/0029Va0mlH5Jf05mrcCz8r3e" target="_blank" rel="noopener">
+      <span class="community-icon">◉</span>
+      <span><strong>Canal de WhatsApp</strong><small>Únete y recibe novedades, casos y recursos.</small></span>
+      <b>→</b>
+    </a>
+    <a class="community-card register" href="https://registro.movidasst.com/" target="_blank" rel="noopener">
+      <span class="community-icon">♟</span>
+      <span><strong>Regístrate en la comunidad</strong><small>Sé parte de La Movida de SST+.</small></span>
+      <b>→</b>
+    </a>
+    <a class="community-card main-site" href="https://www.movidasst.com/" target="_blank" rel="noopener">
+      <span class="community-icon">◎</span>
+      <span><strong>Ir a la página principal</strong><small>Conoce más y explora el ecosistema.</small></span>
+      <b>→</b>
+    </a>
+  </section>
+
+  <footer class="rich-footer">
+    <div class="footer-brand">
+      <img src="https://raw.githubusercontent.com/movidasst/principal/main/logo-movida-sst-plus.svg" alt="La Movida de SST+">
+      <div><strong>LA MOVIDA DE SST+</strong><small>DE LA REACCIÓN A LA PREVENCIÓN</small></div>
+    </div>
+    <div class="footer-center">PIF-SST · Análisis de factores que influyen en el desempeño</div>
+    <a href="https://www.movidasst.com/" target="_blank" rel="noopener">www.movidasst.com</a>
   </footer>
 
   <div id="modal" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-head">
-        <div>
-          <span class="eyebrow" id="modal-eyebrow">PIF-SST</span>
-          <h2 id="modal-title">Modal</h2>
-        </div>
+        <div><span class="eyebrow" id="modal-eyebrow">PIF-SST</span><h2 id="modal-title">Modal</h2></div>
         <button type="button" id="modal-close" class="icon-button" aria-label="Cerrar">×</button>
       </div>
       <div id="modal-body"></div>
@@ -249,7 +337,6 @@
   </div>
 
   <div id="toast" class="toast" hidden></div>
-
   <script type="module" src="./app.js"></script>
 </body>
 </html>
