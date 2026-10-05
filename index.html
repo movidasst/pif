@@ -22,6 +22,7 @@
       <button type="button" class="nav-btn active" data-view="inicio">Inicio</button>
       <button type="button" class="nav-btn" data-view="taxonomia">Taxonomía</button>
       <button type="button" class="nav-btn" data-view="casos">Mis casos</button>
+      <button type="button" class="nav-btn" data-view="preventivo">Preventivo</button>
       <button type="button" class="nav-btn" data-view="analitica">Analítica</button>
     </nav>
 
@@ -118,6 +119,40 @@
           <div id="cases-summary" class="summary-strip"></div>
           <div id="cases-list" class="case-list"></div>
           <div id="case-workspace"></div>
+        </div>
+      </section>
+    </section>
+
+
+    <section id="view-preventivo" class="app-view">
+      <section class="section top-section">
+        <div id="preventive-gate" class="gate-card">
+          <span class="eyebrow">PIF-SST preventivo</span>
+          <h2>Análisis de condiciones antes del trabajo</h2>
+          <p>Usa la taxonomía PIF como lente para documentar condiciones que pueden favorecer o dificultar el desempeño antes de una tarea crítica, durante una revisión previa o en una gestión del cambio.</p>
+          <button class="btn primary" type="button" id="preventive-login">Ingresar</button>
+        </div>
+
+        <div id="preventive-area" hidden>
+          <div class="preventive-scope">
+            <strong>Aplicación preventiva ampliada</strong>
+            <p>EI 3646 fue desarrollado para clasificar hallazgos de investigaciones de incidentes. Este módulo utiliza el concepto PIF y la misma taxonomía como apoyo preventivo. No es un uso formalmente validado por EI 3646 y no sustituye la evaluación de riesgos, permisos de trabajo, procedimientos ni la decisión profesional sobre si una tarea puede ejecutarse.</p>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Análisis preventivo</span>
+              <h2>Mis revisiones de tarea</h2>
+            </div>
+            <div class="case-actions">
+              <button class="btn demo" type="button" id="preventive-demo-button">⚡ DEMO preventivo</button>
+              <button class="btn primary" type="button" id="new-preventive-button">+ Nuevo análisis</button>
+            </div>
+          </div>
+
+          <div id="preventive-summary" class="summary-strip"></div>
+          <div id="preventive-list" class="case-list"></div>
+          <div id="preventive-workspace"></div>
         </div>
       </section>
     </section>
