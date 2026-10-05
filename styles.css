@@ -272,3 +272,55 @@ footer a{color:var(--teal);font-weight:800}
 @media(max-width:650px){
   .case-kpis,.quality-grid,.analytics-summary,.analytics-grid{grid-template-columns:1fr}
 }
+
+/* PIF-SST · Módulo preventivo */
+.preventive-scope{
+  margin-bottom:22px;
+  padding:16px 18px;
+  border:1px solid #cfe4e6;
+  border-left:5px solid var(--teal);
+  border-radius:14px;
+  background:#f3fafb
+}
+.preventive-scope strong{color:var(--navy)}
+.preventive-scope p{margin:5px 0 0;font-size:.8rem;line-height:1.55;color:var(--muted)}
+.preventive-disclaimer{
+  margin:16px 0;
+  padding:11px 13px;
+  border-left:4px solid var(--yellow);
+  border-radius:9px;
+  background:#fff9e7;
+  font-size:.75rem;
+  line-height:1.5
+}
+.preventive-disclaimer strong{color:var(--navy)}
+.preventive-condition-section{margin-top:18px}
+.preventive-factor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.preventive-factor{
+  padding:14px;
+  border:1px solid var(--line);
+  border-left:5px solid var(--yellow);
+  border-radius:13px;
+  background:white
+}
+.preventive-factor.favorable{border-left-color:var(--green)}
+.preventive-factor.critica{border-left-color:var(--danger)}
+.preventive-factor-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.preventive-factor h3{margin:4px 0 0;color:var(--navy);font-size:.93rem}
+.preventive-factor p{margin:10px 0 8px;font-size:.8rem;line-height:1.5}
+.preventive-factor small{display:block;margin-top:5px;color:var(--muted);font-size:.7rem;line-height:1.4}
+.preventive-status{
+  flex:0 0 auto;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:.65rem;
+  font-weight:800;
+  background:#fff5d9;
+  color:#745800
+}
+.preventive-status.favorable{background:#edf7e8;color:#527f36}
+.preventive-status.critica{background:#fff0ee;color:#9b241c}
+
+@media(max-width:900px){
+  .preventive-factor-grid{grid-template-columns:1fr}
+}
