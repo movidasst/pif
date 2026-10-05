@@ -1560,7 +1560,7 @@ function renderSimulatorCases() {
     `;
   }).join('');
 
-  $('[data-start-simulator]').forEach(btn => btn.addEventListener('click', () => startSimulatorCase(btn.dataset.startSimulator)));
+  document.querySelectorAll('[data-start-simulator]').forEach(btn => btn.addEventListener('click', () => startSimulatorCase(btn.dataset.startSimulator)));
   renderSimulatorHistory();
 }
 
@@ -1796,7 +1796,7 @@ function renderSimulatorWorkspace() {
   `;
 
   if (!feedback) {
-    $('[data-sim-option]').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-sim-option]').forEach(btn => btn.addEventListener('click', () => {
       state.simulatorSelected = Number(btn.dataset.simOption);
       renderSimulatorWorkspace();
     }));
