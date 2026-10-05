@@ -1177,3 +1177,75 @@ button,input,select,textarea{font-family:inherit}
   .access-logo-wrap{width:92px;height:92px}
   .access-logo-wrap img{width:82px;height:82px}
 }
+
+
+/* ===== Niveles de acceso y administración PIF-SST ===== */
+.access-password-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.password-toggle{
+  min-height:48px;padding:0 12px;border:1px solid #d8e3ec;border-radius:12px;
+  background:#f6fafc;color:var(--teal);font-weight:800
+}
+.access-plan-card{
+  display:grid;justify-items:center;text-align:center;max-width:620px;margin:0 auto;
+}
+.access-plan-icon{
+  width:62px;height:62px;display:grid;place-items:center;margin-bottom:12px;border-radius:50%;
+  background:linear-gradient(180deg,#ffdb4d,#ffb600);color:#00205b;font-size:1.7rem;font-weight:900;
+  box-shadow:0 12px 26px rgba(255,182,0,.22)
+}
+.access-plan-card h2{margin:5px 0 8px;color:var(--navy)}
+.access-plan-card>p{max-width:540px}
+.access-plan-features{display:grid;gap:6px;margin:10px 0 15px}
+.access-plan-features span{font-size:.76rem;color:var(--muted)}
+.access-plan-features span:before{content:"✓";margin-right:6px;color:var(--teal);font-weight:900}
+.access-request-state{
+  display:inline-flex;padding:8px 11px;border-radius:999px;background:#fff5d8;
+  color:#7d5d00;font-size:.72rem;font-weight:900
+}
+.account-access-card{
+  padding:14px;border:1px solid var(--line);border-radius:14px;background:#f8fbfd
+}
+.account-access-card h3{margin:4px 0 7px;color:var(--navy)}
+.account-access-card p{margin:8px 0 0;color:var(--muted);font-size:.78rem;line-height:1.5}
+.account-access-level{
+  display:inline-flex;padding:5px 9px;border-radius:999px;font-size:.68rem;font-weight:900
+}
+.account-access-level.free{background:#eef3f7;color:#5e6c7c}
+.account-access-level.full{background:#e8f7f2;color:#167553}
+.account-actions{margin-top:13px}
+
+.admin-banner{background:linear-gradient(120deg,#001841,#003067 58%,#00747e 120%)}
+.admin-kpis{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px
+}
+.admin-kpi{
+  padding:16px;border:1px solid var(--line);border-radius:15px;background:white;
+  box-shadow:0 8px 24px rgba(0,32,91,.05)
+}
+.admin-kpi strong{display:block;color:var(--teal);font-size:1.6rem}
+.admin-kpi span{font-size:.72rem;color:var(--muted)}
+.admin-card{
+  margin-top:14px;padding:18px;border:1px solid var(--line);border-radius:18px;background:white;
+  box-shadow:0 9px 28px rgba(0,32,91,.05)
+}
+.admin-card-head h2{margin:4px 0 0;color:var(--navy);font-size:1.05rem}
+.admin-search{display:grid;grid-template-columns:1fr auto;gap:9px;margin:14px 0}
+.admin-list{display:grid;gap:8px}
+.admin-user-row{
+  display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;
+  padding:12px;border:1px solid #e2eaf0;border-radius:13px;background:#fbfdfe
+}
+.admin-user-main strong{display:block;color:var(--navy);font-size:.83rem}
+.admin-user-main>span{display:block;margin:2px 0 6px;color:var(--muted);font-size:.68rem}
+.admin-user-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.admin-user-actions .btn{font-size:.67rem;padding:7px 9px}
+.pill.yellow{background:#fff4d2;color:#7d5d00}
+@media(max-width:800px){
+  .admin-kpis{grid-template-columns:repeat(2,1fr)}
+  .admin-user-row{grid-template-columns:1fr}
+  .admin-user-actions{justify-content:flex-start}
+}
+@media(max-width:520px){
+  .admin-search{grid-template-columns:1fr}
+  .admin-kpis{grid-template-columns:1fr 1fr}
+}
