@@ -1561,6 +1561,101 @@ function renderSimulatorCases() {
   }).join('');
 
   $('[data-start-simulator]').forEach(btn => btn.addEventListener('click', () => startSimulatorCase(btn.dataset.startSimulator)));
+  renderSimulatorHistory();
+}
+
+
+function renderSimulatorHistory() {
+  const el = $('#simulator-history');
+  if (!el) return;
+  const finished = state.simulatorAttempts.filter(a => a.estado === 'finalizado' && a.puntuacion != null);
+
+  if (!finished.length) {
+    el.innerHTML = '<section class="sim-history-card empty-history"><div><span class="eyebrow">Mi historial</span><h3>Tu progreso aparecerá aquí</h3><p>Completa un caso para comenzar a ver resultados, repeticiones y evolución de tu criterio.</p></div></section>';
+    return;
+  }
+
+  const scores = finished.map(a => Number(a.puntuacion));
+  const best = Math.max(...scores);
+  const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+  const distinct = new Set(finished.map(a => a.simulador_caso_id)).size;
+  const recent = finished.slice(0,6);
+  const practiceLevel = distinct >= 3 && avg >= 80 ? 'Criterio consistente' : distinct >= 2 && avg >= 70 ? 'En consolidación' : 'En práctica';
+
+  el.innerHTML = `
+    <section class="sim-history-card">
+      <div class="sim-history-head">
+        <div><span class="eyebrow">Mi historial</span><h3>Trayectoria de práctica</h3></div>
+        <span class="sim-practice-level">${practiceLevel}</span>
+      </div>
+      <div class="sim-history-metrics">
+        <div><strong>${finished.length}</strong><span>intentos finalizados</span></div>
+        <div><strong>${distinct}</strong><span>casos diferentes</span></div>
+        <div><strong>${avg}%</strong><span>promedio</span></div>
+        <div><strong>${best}%</strong><span>mejor resultado</span></div>
+      </div>
+      <div class="sim-history-list">
+        ${recent.map(a => {
+          const c = state.simulatorCases.find(x => x.id === a.simulador_caso_id);
+          return `<div class="sim-history-row"><div><strong>${esc(c?.titulo || 'Caso de práctica')}</strong><span>${esc(fmtDate(a.finalizado_at || a.iniciado_at))}</span></div><b>${Math.round(Number(a.puntuacion || 0))}%</b></div>`;
+        }).join('')}
+      </div>
+      <p class="sim-history-note">Los resultados sirven para práctica y calibración. No representan certificación ni evaluación de competencia profesional.</p>
+    </section>
+  `;
+}
+
+async function loadSimulatorCalibration(caseId) {
+  state.simulatorCalibration = [];
+  const { data, error } = await supabase.rpc('pif_simulador_calibracion', { p_caso: caseId });
+  if (error) {
+    console.error(error);
+    return;
+  }
+  state.simulatorCalibration = data || [];
+}
+
+function renderCalibration(stageNumber, content, ownFeedback) {
+  const rows = state.simulatorCalibration.filter(r => Number(r.etapa) === Number(stageNumber));
+  const total = rows.length ? Number(rows[0].total || 0) : 0;
+
+  if (total < 3) {
+    return `
+      <div class="sim-calibration waiting">
+        <div class="sim-calibration-head">
+          <div><span class="eyebrow">Calibración entre analistas</span><h4>La comparación grupal se habilita con más respuestas</h4></div>
+          <span class="pill">Mínimo 3 intentos finalizados</span>
+        </div>
+        <p>La distribución se mostrará de forma agregada y anónima. La opción más elegida por el grupo no se considera automáticamente la respuesta correcta.</p>
+      </div>
+    `;
+  }
+
+  const counts = new Map(rows.map(r => [Number(r.opcion), Number(r.respuestas)]));
+  return `
+    <div class="sim-calibration">
+      <div class="sim-calibration-head">
+        <div><span class="eyebrow">Calibración entre analistas</span><h4>Cómo respondió el grupo</h4></div>
+        <span class="pill teal">${total} respuestas</span>
+      </div>
+      <p>Compara tu criterio con la distribución agregada. La mayoría no define la respuesta correcta; la referencia sigue siendo la evidencia y la lógica del caso.</p>
+      <div class="sim-calibration-bars">
+        ${content.options.map((opt,idx) => {
+          const count = counts.get(idx) || 0;
+          const pct = Math.round((count/total)*100);
+          const mine = Number(ownFeedback?.selected) === idx;
+          const reference = Number(content.correct) === idx;
+          return `
+            <div class="sim-cal-row ${mine ? 'mine' : ''} ${reference ? 'reference' : ''}">
+              <div class="sim-cal-label"><span><b>${String.fromCharCode(65+idx)}</b> ${esc(opt)}</span><strong>${pct}%</strong></div>
+              <div class="sim-cal-track"><span style="width:${Math.max(pct,3)}%"></span></div>
+              <div class="sim-cal-meta">${mine ? '<span>Tu respuesta</span>' : ''}${reference ? '<span>Referencia del ejercicio</span>' : ''}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
 }
 
 async function startSimulatorCase(caseId) {
