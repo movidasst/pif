@@ -754,32 +754,73 @@ function adminMemberCard(r, pendingMode=false) {
 }
 
 function bindAdminActions() {
-  $('.admin-set-access').forEach(btn => btn.addEventListener('click', () => {
-    setAdminAccess(Number(btn.dataset.id), btn.dataset.level, true);
-  }));
-  $('.admin-block-access').forEach(btn => btn.addEventListener('click', () => {
-    setAdminAccess(Number(btn.dataset.id), 'gratuito', false);
-  }));
-}
-
-async function setAdminAccess(integranteId, nivel, activo=true) {
-  const label = !activo ? 'bloquear este acceso' : nivel === 'completo' ? 'aprobar acceso completo' : 'dejar acceso gratuito';
-  if (!confirm('¿Quieres ' + label + '?')) return;
-
-  const { error } = await adminSupabase.rpc('pif_admin_set_access', {
-    p_integrante_id: integranteId,
-    p_nivel: nivel,
-    p_activo: activo,
-    p_nota: null
+  document.querySelectorAll('.admin-set-access').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setAdminAccess(Number(btn.dataset.id), btn.dataset.level, true, btn);
+    });
   });
 
-  if (error) {
-    console.error(error);
-    return toast('No fue posible actualizar el acceso.');
+  document.querySelectorAll('.admin-block-access').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setAdminAccess(Number(btn.dataset.id), btn.dataset.level || 'gratuito', false, btn);
+    });
+  });
+}
+
+async function setAdminAccess(integranteId, nivel, activo=true, triggerButton=null) {
+  if (!Number.isFinite(integranteId) || integranteId <= 0) {
+    return toast('No se pudo identificar al integrante.');
   }
 
-  await loadAdminAccess();
-  toast('Acceso actualizado.');
+  const label = !activo
+    ? 'bloquear este acceso'
+    : nivel === 'completo'
+      ? 'aprobar acceso completo'
+      : 'dejar acceso gratuito';
+
+  if (!confirm('¿Quieres ' + label + '?')) return;
+
+  const originalText = triggerButton?.textContent || '';
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = nivel === 'completo' && activo ? 'Aprobando…' : 'Actualizando…';
+  }
+
+  try {
+    const { data, error } = await adminSupabase.rpc('pif_admin_set_access', {
+      p_integrante_id: integranteId,
+      p_nivel: nivel,
+      p_activo: activo,
+      p_nota: null
+    });
+
+    if (error) throw error;
+
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!updated) throw new Error('La actualización no devolvió confirmación.');
+
+    await loadAdminAccess();
+
+    if ($('#admin-search-input')?.value.trim().length >= 2) {
+      await searchAdminMembers();
+    }
+
+    toast(
+      !activo
+        ? 'Acceso bloqueado.'
+        : nivel === 'completo'
+          ? 'Acceso completo aprobado.'
+          : 'Acceso gratuito actualizado.'
+    );
+  } catch (error) {
+    console.error('Error al actualizar acceso PIF-SST', error);
+    toast(error?.message || 'No fue posible actualizar el acceso.');
+  } finally {
+    if (triggerButton?.isConnected) {
+      triggerButton.disabled = false;
+      triggerButton.textContent = originalText;
+    }
+  }
 }
 
 async function searchAdminMembers() {
