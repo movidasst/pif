@@ -56,7 +56,10 @@ a{color:inherit}
 .btn{border:1px solid var(--line);border-radius:11px;min-height:42px;padding:9px 14px;background:white;color:var(--navy);font-weight:800}
 .btn.primary{background:var(--navy);border-color:var(--navy);color:white}
 .btn.teal{background:var(--teal);border-color:var(--teal);color:white}
+.btn.demo{background:#fff4cf;border-color:#ffd35a;color:#5f4700}
+.btn.demo:hover{background:#ffe99e}
 .btn.secondary{background:white}
+.case-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
 .btn.danger{color:var(--danger);border-color:#f0c8c4;background:#fff8f7}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
