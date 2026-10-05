@@ -22,6 +22,7 @@
       <button type="button" class="nav-btn active" data-view="inicio">Inicio</button>
       <button type="button" class="nav-btn" data-view="taxonomia">Taxonomía</button>
       <button type="button" class="nav-btn" data-view="casos">Mis casos</button>
+      <button type="button" class="nav-btn" data-view="analitica">Analítica</button>
     </nav>
 
     <button type="button" id="account-button" class="account-button">Ingresar</button>
@@ -119,6 +120,78 @@
         </div>
       </section>
     </section>
+
+    <section id="view-analitica" class="app-view">
+      <section class="section top-section">
+        <div id="analytics-gate" class="gate-card">
+          <span class="eyebrow">Analítica PIF-SST</span>
+          <h2>Tendencias de mis casos</h2>
+          <p>Ingresa como integrante para analizar tus casos. Los casos de aprendizaje y DEMO se excluyen de los indicadores de casos reales.</p>
+          <button class="btn primary" type="button" id="analytics-login">Ingresar</button>
+        </div>
+
+        <div id="analytics-area" hidden>
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Analítica</span>
+              <h2>Factores que aparecen en mis casos</h2>
+            </div>
+            <div class="status-text" id="analytics-status">Sin datos cargados</div>
+          </div>
+
+          <div id="analytics-summary" class="analytics-summary"></div>
+
+          <div class="analytics-grid">
+            <article class="analytics-card">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="eyebrow">PIF confirmados</span>
+                  <h3>Factores más frecuentes</h3>
+                </div>
+              </div>
+              <div id="analytics-top-pif" class="bar-list"></div>
+            </article>
+
+            <article class="analytics-card">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="eyebrow">Categorías</span>
+                  <h3>Distribución</h3>
+                </div>
+              </div>
+              <div id="analytics-categories" class="bar-list"></div>
+            </article>
+          </div>
+
+          <div class="analytics-grid">
+            <article class="analytics-card">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="eyebrow">Barreras</span>
+                  <h3>Estado de controles registrados</h3>
+                </div>
+              </div>
+              <div id="analytics-barriers" class="bar-list"></div>
+            </article>
+
+            <article class="analytics-card">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="eyebrow">Combinaciones</span>
+                  <h3>Pares de PIF recurrentes</h3>
+                </div>
+              </div>
+              <div id="analytics-combinations" class="mini-list"></div>
+            </article>
+          </div>
+
+          <div class="analytics-note">
+            <strong>Cómo leer estos datos:</strong> PIF-SST muestra frecuencia y coaparición de factores codificados en tus casos. Una asociación estadística no equivale por sí sola a causalidad.
+          </div>
+        </div>
+      </section>
+    </section>
+
   </main>
 
   <footer>
