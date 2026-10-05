@@ -2,7 +2,7 @@
 
 **Análisis de factores que influyen en el desempeño**
 
-Aplicación web de La Movida de SST+ para consultar y aplicar la taxonomía PIF del **EI 3646, Research report: A proposed human factors performance influencing factors (PIFs) taxonomy, primera edición, agosto de 2026**.
+Aplicación web de La Movida de SST+ para consultar y aplicar la taxonomía PIF del **PIF-SST, Research report: A proposed human factors performance influencing factors (PIFs) taxonomy, primera edición, agosto de 2026**.
 
 ## Estado actual
 
