@@ -3174,7 +3174,10 @@ async function initAuth() {
 
 async function init() {
   const target = location.hash.replace('#','');
-  if (['inicio','taxonomia','casos','simulador','preventivo','analitica','admin'].includes(target)) showView(target);
+  const validTarget = ['inicio','taxonomia','casos','simulador','preventivo','analitica','admin'].includes(target)
+    ? target
+    : 'inicio';
+
   try {
     await loadTaxonomy();
   } catch (error) {
@@ -3182,12 +3185,24 @@ async function init() {
     $('#taxonomy-status').textContent = 'No fue posible cargar la taxonomía';
     $('#taxonomy-grid').innerHTML = '<div class="empty-state">No se pudo consultar la taxonomía en este momento.</div>';
   }
+
   await initAuth();
-  if (state.session && target === 'casos' && hasFullAccess()) await loadCases();
-  if (state.session && target === 'simulador') await loadSimulator();
-  if (state.session && target === 'preventivo' && hasFullAccess()) await loadPreventives();
-  if (state.session && target === 'analitica' && hasFullAccess()) await loadAnalytics();
-  if (state.session && target === 'admin' && state.isAdmin) await loadAdminAccess();
-  if (target === 'admin' && !state.isAdmin) showView('inicio');
+
+  if (validTarget === 'admin') {
+    if (state.isAdmin) {
+      showView('admin');
+      await loadAdminAccess();
+    } else {
+      showView('inicio');
+    }
+    return;
+  }
+
+  showView(validTarget);
+
+  if (state.session && validTarget === 'casos' && hasFullAccess()) await loadCases();
+  if (state.session && validTarget === 'simulador') await loadSimulator();
+  if (state.session && validTarget === 'preventivo' && hasFullAccess()) await loadPreventives();
+  if (state.session && validTarget === 'analitica' && hasFullAccess()) await loadAnalytics();
 }
 init();
