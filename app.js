@@ -261,6 +261,8 @@ async function login() {
     closeModal();
     renderAccount();
     await loadCases();
+    if (location.hash === '#preventivo') await loadPreventives();
+    if (location.hash === '#analitica') await loadAnalytics();
     toast('Acceso correcto.');
   } catch (error) {
     console.error(error);
@@ -287,6 +289,8 @@ async function logout() {
   renderAccount();
   $('#cases-list').innerHTML = '';
   $('#case-workspace').innerHTML = '';
+  if ($('#preventive-list')) $('#preventive-list').innerHTML = '';
+  if ($('#preventive-workspace')) $('#preventive-workspace').innerHTML = '';
   closeModal();
   toast('Sesión cerrada.');
 }
