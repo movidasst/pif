@@ -33,7 +33,10 @@ const state = {
   cases: [],
   currentCase: null,
   detail: null,
-  analytics: null
+  analytics: null,
+  preventives: [],
+  currentPreventive: null,
+  preventiveDetail: null
 };
 
 const $ = selector => document.querySelector(selector);
@@ -79,6 +82,10 @@ function showView(name) {
   if (name === 'casos') {
     if (state.session) loadCases();
     renderCasesGate();
+  }
+  if (name === 'preventivo') {
+    renderPreventiveGate();
+    if (state.session) loadPreventives();
   }
   if (name === 'analitica') {
     renderAnalyticsGate();
@@ -178,6 +185,7 @@ function renderAccount() {
     button.textContent = 'Ingresar';
   }
   renderCasesGate();
+  renderPreventiveGate();
   renderAnalyticsGate();
 }
 
@@ -185,6 +193,15 @@ function renderCasesGate() {
   const logged = Boolean(state.session);
   $('#cases-gate').hidden = logged;
   $('#cases-area').hidden = !logged;
+}
+
+function renderPreventiveGate() {
+  const logged = Boolean(state.session);
+  const gate = $('#preventive-gate');
+  const area = $('#preventive-area');
+  if (!gate || !area) return;
+  gate.hidden = logged;
+  area.hidden = !logged;
 }
 
 function renderAnalyticsGate() {
@@ -263,6 +280,9 @@ async function logout() {
   state.cases = [];
   state.currentCase = null;
   state.detail = null;
+  state.preventives = [];
+  state.currentPreventive = null;
+  state.preventiveDetail = null;
   localStorage.removeItem('pif_member');
   renderAccount();
   $('#cases-list').innerHTML = '';
@@ -282,6 +302,7 @@ $('#account-button').addEventListener('click', () => {
   $('#logout-button').addEventListener('click', logout);
 });
 $('#gate-login').addEventListener('click', showLogin);
+$('#preventive-login')?.addEventListener('click', showLogin);
 $('#analytics-login')?.addEventListener('click', showLogin);
 
 async function loadCases() {
@@ -1421,6 +1442,581 @@ function openCaseReport() {
   reportWindow.document.close();
 }
 
+
+async function loadPreventives() {
+  if (!state.session) return;
+  const { data, error } = await supabase
+    .from('pif_preventivos')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return toast('No fue posible cargar los análisis preventivos.');
+  }
+
+  state.preventives = data || [];
+  renderPreventives();
+}
+
+function preventiveTypeLabel(value) {
+  return {
+    tarea_critica: 'Tarea crítica',
+    pre_tarea: 'Revisión previa',
+    gestion_cambio: 'Gestión del cambio'
+  }[value] || value;
+}
+
+function preventiveInfluenceLabel(value) {
+  return {
+    favorable: 'Favorable',
+    atencion: 'Requiere atención',
+    critica: 'Condición crítica'
+  }[value] || value;
+}
+
+function renderPreventives() {
+  const counts = {
+    total: state.preventives.length,
+    borrador: state.preventives.filter(x => x.estado === 'borrador').length,
+    revision: state.preventives.filter(x => x.estado === 'en_revision' || x.estado === 'listo').length,
+    cerrados: state.preventives.filter(x => x.estado === 'cerrado').length
+  };
+
+  $('#preventive-summary').innerHTML = `
+    <div class="summary-item"><strong>${counts.total}</strong><span>análisis</span></div>
+    <div class="summary-item"><strong>${counts.borrador}</strong><span>borradores</span></div>
+    <div class="summary-item"><strong>${counts.revision}</strong><span>en revisión</span></div>
+    <div class="summary-item"><strong>${counts.cerrados}</strong><span>cerrados</span></div>
+  `;
+
+  if (!state.preventives.length) {
+    $('#preventive-list').innerHTML = '<div class="empty-state">Aún no tienes análisis preventivos. Puedes crear uno o abrir el DEMO para ver el flujo completo.</div>';
+    $('#preventive-workspace').innerHTML = '';
+    return;
+  }
+
+  $('#preventive-list').innerHTML = state.preventives.map(p => `
+    <article class="case-card">
+      <div class="row">
+        <div>
+          <h3>${esc(p.codigo)} · ${esc(p.titulo)}</h3>
+          <p>${esc([p.empresa, p.area, p.actividad].filter(Boolean).join(' · ') || 'Sin contexto adicional')}</p>
+          <div class="pills">
+            <span class="pill teal">${esc(preventiveTypeLabel(p.tipo))}</span>
+            <span class="pill">${esc(p.estado.replace('_',' '))}</span>
+            <span class="pill">${esc(fmtDate(p.fecha_revision))}</span>
+          </div>
+        </div>
+        <button class="btn secondary" type="button" data-open-preventive="${p.id}">Abrir</button>
+      </div>
+    </article>
+  `).join('');
+
+  $('[data-open-preventive]').forEach(btn => btn.addEventListener('click', () => openPreventive(btn.dataset.openPreventive)));
+}
+
+function showNewPreventive() {
+  if (!state.session) return showLogin();
+  openModal('Nuevo análisis preventivo', `
+    <div class="warning">Este módulo documenta condiciones de desempeño antes de una tarea o cambio. No reemplaza la evaluación de riesgos ni autoriza por sí mismo la ejecución del trabajo.</div>
+    <div class="form-grid" style="margin-top:12px">
+      <label class="field">
+        <span>Tipo de revisión</span>
+        <select id="preventive-type">
+          <option value="tarea_critica">Tarea crítica</option>
+          <option value="pre_tarea">Revisión previa a la tarea</option>
+          <option value="gestion_cambio">Gestión del cambio</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Fecha de revisión</span>
+        <input id="preventive-date" type="date">
+      </label>
+      <label class="field wide">
+        <span>Nombre del análisis</span>
+        <input id="preventive-title" placeholder="Ej.: Mantenimiento de bomba en parada de planta">
+      </label>
+      <label class="field"><span>Empresa</span><input id="preventive-company"></label>
+      <label class="field"><span>Centro de trabajo</span><input id="preventive-site"></label>
+      <label class="field"><span>Área</span><input id="preventive-area-input"></label>
+      <label class="field"><span>Actividad</span><input id="preventive-activity"></label>
+      <label class="field wide">
+        <span>Descripción y contexto</span>
+        <textarea id="preventive-description" placeholder="Describe la tarea, condiciones previstas, cambios recientes y contexto operativo relevante."></textarea>
+      </label>
+    </div>
+    <div class="actions"><button class="btn primary" id="preventive-save" type="button">Crear análisis</button></div>
+  `, 'Prevención PIF-SST');
+
+  $('#preventive-date').value = new Date().toISOString().slice(0,10);
+  $('#preventive-save').addEventListener('click', createPreventive);
+}
+
+async function createPreventive() {
+  const title = $('#preventive-title').value.trim();
+  if (!title) return toast('Escribe un nombre para el análisis.');
+
+  const button = $('#preventive-save');
+  button.disabled = true;
+  button.textContent = 'Creando…';
+
+  const { data, error } = await supabase.from('pif_preventivos').insert({
+    tipo: $('#preventive-type').value,
+    titulo: title,
+    fecha_revision: $('#preventive-date').value || null,
+    empresa: $('#preventive-company').value.trim() || null,
+    centro_trabajo: $('#preventive-site').value.trim() || null,
+    area: $('#preventive-area-input').value.trim() || null,
+    actividad: $('#preventive-activity').value.trim() || null,
+    descripcion: $('#preventive-description').value.trim() || null,
+    estado: 'borrador'
+  }).select('*').single();
+
+  button.disabled = false;
+  button.textContent = 'Crear análisis';
+
+  if (error) {
+    console.error(error);
+    return toast(error.message || 'No fue posible crear el análisis preventivo.');
+  }
+
+  closeModal();
+  await loadPreventives();
+  await openPreventive(data.id);
+  toast('Análisis preventivo creado.');
+}
+
+async function createPreventiveDemo() {
+  if (!state.session) return showLogin();
+  const existing = state.preventives.find(p => p.titulo === 'DEMO · Ingreso a espacio confinado');
+  if (existing) {
+    await openPreventive(existing.id);
+    return toast('El DEMO preventivo ya existe. Lo abrí para continuar.');
+  }
+
+  const button = $('#preventive-demo-button');
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Creando DEMO…';
+
+  let analysisId = null;
+  try {
+    const created = await supabase.from('pif_preventivos').insert({
+      tipo: 'pre_tarea',
+      titulo: 'DEMO · Ingreso a espacio confinado',
+      fecha_revision: new Date().toISOString().slice(0,10),
+      empresa: 'Caso de aprendizaje PIF-SST',
+      centro_trabajo: 'Instalación de proceso',
+      area: 'Mantenimiento',
+      actividad: 'Ingreso para inspección y mantenimiento interno',
+      descripcion: 'Ejercicio preventivo para revisar condiciones que pueden influir en el desempeño antes de iniciar una tarea crítica en espacio confinado. No corresponde a una autorización de entrada ni sustituye los controles específicos para espacios confinados.',
+      estado: 'en_revision'
+    }).select('*').single();
+    if (created.error) throw created.error;
+    analysisId = created.data.id;
+
+    const factorsRes = await supabase.from('pif_preventivo_factores').insert([
+      {
+        analisis_id: analysisId,
+        pif_codigo: 'T.2',
+        condicion_observable: 'La ventana de mantenimiento fue reducida y el equipo reporta presión por completar la actividad dentro del turno.',
+        influencia: 'critica',
+        fuente_contexto: 'Reunión previa de planificación',
+        notas: 'Revisar antes de iniciar la tarea.'
+      },
+      {
+        analisis_id: analysisId,
+        pif_codigo: 'D.1',
+        condicion_observable: 'El procedimiento está disponible, pero incluye una referencia a una configuración anterior del equipo.',
+        influencia: 'atencion',
+        fuente_contexto: 'Revisión documental previa'
+      },
+      {
+        analisis_id: analysisId,
+        pif_codigo: 'S.4',
+        condicion_observable: 'La dotación prevista cubre los roles definidos, aunque existe poca holgura ante una ausencia o relevo inesperado.',
+        influencia: 'atencion',
+        fuente_contexto: 'Plan de personal del turno'
+      },
+      {
+        analisis_id: analysisId,
+        pif_codigo: 'P.3',
+        condicion_observable: 'El personal asignado reporta descanso adecuado y no se identificaron restricciones declaradas para la tarea en la revisión previa.',
+        influencia: 'favorable',
+        fuente_contexto: 'Conversación previa a la tarea'
+      },
+      {
+        analisis_id: analysisId,
+        pif_codigo: 'W.1',
+        condicion_observable: 'Se prevé carga térmica relevante dentro del espacio y la ventilación debe mantenerse durante la intervención.',
+        influencia: 'atencion',
+        fuente_contexto: 'Condiciones previstas del ambiente de trabajo'
+      }
+    ]).select('*');
+    if (factorsRes.error) throw factorsRes.error;
+
+    const byCode = Object.fromEntries(factorsRes.data.map(f => [f.pif_codigo, f.id]));
+    const actionsRes = await supabase.from('pif_preventivo_acciones').insert([
+      {
+        analisis_id: analysisId,
+        factor_id: byCode['T.2'],
+        titulo: 'Revisar la ventana real de ejecución',
+        descripcion: 'Ajustar planificación o recursos para que el tiempo disponible no genere presión incompatible con los controles definidos.',
+        responsable: 'Supervisor de mantenimiento',
+        estado: 'pendiente'
+      },
+      {
+        analisis_id: analysisId,
+        factor_id: byCode['D.1'],
+        titulo: 'Validar el procedimiento aplicable',
+        descripcion: 'Confirmar que la versión utilizada corresponde a la configuración actual del equipo antes de iniciar el trabajo.',
+        responsable: 'Responsable de la tarea',
+        estado: 'pendiente'
+      },
+      {
+        analisis_id: analysisId,
+        factor_id: byCode['W.1'],
+        titulo: 'Confirmar condiciones ambientales y ventilación',
+        descripcion: 'Verificar que las condiciones ambientales previstas y la ventilación sean gestionadas mediante los controles específicos de la tarea.',
+        responsable: 'Equipo de trabajo',
+        estado: 'pendiente'
+      }
+    ]);
+    if (actionsRes.error) throw actionsRes.error;
+
+    await loadPreventives();
+    await openPreventive(analysisId);
+    toast('DEMO preventivo creado. Ya puedes revisar condiciones y acciones.');
+  } catch (error) {
+    console.error(error);
+    if (analysisId) await supabase.from('pif_preventivos').delete().eq('id', analysisId);
+    toast(error.message || 'No fue posible crear el DEMO preventivo.');
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+async function openPreventive(id) {
+  const current = state.preventives.find(p => p.id === id);
+  if (!current) return;
+  state.currentPreventive = current;
+
+  const [fRes, aRes] = await Promise.all([
+    supabase.from('pif_preventivo_factores').select('*').eq('analisis_id', id).order('created_at'),
+    supabase.from('pif_preventivo_acciones').select('*').eq('analisis_id', id).order('created_at')
+  ]);
+
+  if (fRes.error || aRes.error) {
+    console.error(fRes.error || aRes.error);
+    return toast('No fue posible cargar el análisis preventivo.');
+  }
+
+  state.preventiveDetail = {
+    factores: fRes.data || [],
+    acciones: aRes.data || []
+  };
+  renderPreventiveWorkspace();
+  $('#preventive-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function preventiveQuality() {
+  const d = state.preventiveDetail || { factores: [], acciones: [] };
+  const critical = d.factores.filter(f => f.influencia === 'critica');
+  const criticalWithoutAction = critical.filter(f => !d.acciones.some(a => a.factor_id === f.id)).length;
+  const attention = d.factores.filter(f => f.influencia === 'atencion').length;
+  const favorable = d.factores.filter(f => f.influencia === 'favorable').length;
+  const pendingActions = d.acciones.filter(a => a.estado === 'pendiente' || a.estado === 'en_ejecucion').length;
+  return { critical: critical.length, criticalWithoutAction, attention, favorable, pendingActions };
+}
+
+function renderPreventiveWorkspace() {
+  const p = state.currentPreventive;
+  const d = state.preventiveDetail;
+  if (!p || !d) return;
+
+  const q = preventiveQuality();
+  $('#preventive-workspace').innerHTML = `
+    <section class="workspace-card preventive-workspace">
+      <div class="workspace-head">
+        <div>
+          <span class="eyebrow">${esc(p.codigo)}</span>
+          <h2>${esc(p.titulo)}</h2>
+          <p>${esc(p.descripcion || 'Sin descripción.')}</p>
+          <div class="workspace-meta">
+            <span class="pill teal">${esc(preventiveTypeLabel(p.tipo))}</span>
+            <span class="pill">${esc(p.estado.replace('_',' '))}</span>
+            ${p.area ? `<span class="pill">${esc(p.area)}</span>` : ''}
+            ${p.actividad ? `<span class="pill">${esc(p.actividad)}</span>` : ''}
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn teal" type="button" id="preventive-add-factor">+ Condición PIF</button>
+          <button class="btn secondary" type="button" id="preventive-add-action">+ Acción</button>
+          ${p.estado !== 'cerrado' ? '<button class="btn secondary" type="button" id="preventive-close">Cerrar revisión</button>' : ''}
+        </div>
+      </div>
+
+      <div class="preventive-disclaimer">
+        <strong>Importante:</strong> cerrar esta revisión significa cerrar el registro documental. No equivale a autorizar la ejecución de la tarea ni declara que el riesgo sea aceptable.
+      </div>
+
+      <div class="case-kpis">
+        <div><strong>${d.factores.length}</strong><span>condiciones PIF</span></div>
+        <div><strong>${q.favorable}</strong><span>favorables</span></div>
+        <div><strong>${q.attention}</strong><span>requieren atención</span></div>
+        <div><strong>${q.critical}</strong><span>críticas</span></div>
+        <div><strong>${d.acciones.length}</strong><span>acciones</span></div>
+        <div><strong>${q.pendingActions}</strong><span>acciones abiertas</span></div>
+      </div>
+
+      <section class="preventive-condition-section">
+        <div class="subsection-title">
+          <strong>Condiciones que pueden influir en el desempeño</strong>
+          <span class="help">Registra solo las condiciones pertinentes para esta tarea. No es obligatorio recorrer los 38 PIF como lista de chequeo.</span>
+        </div>
+        <div class="preventive-factor-grid">
+          ${d.factores.length ? d.factores.map(renderPreventiveFactor).join('') : '<div class="empty-state small">Todavía no has registrado condiciones PIF para esta tarea.</div>'}
+        </div>
+      </section>
+
+      <section class="interventions-panel">
+        <div class="subsection-title">
+          <strong>Acciones antes o durante la tarea</strong>
+          <span class="help">Las acciones deben responder al contexto identificado y a los controles de SST aplicables.</span>
+        </div>
+        <div class="mini-list">
+          ${d.acciones.length ? d.acciones.map(a => {
+            const f = d.factores.find(x => x.id === a.factor_id);
+            return `
+              <div class="mini-item">
+                <strong>${esc(a.titulo)}</strong>
+                ${f ? `<br><span class="pill teal">${esc(f.pif_codigo)}</span>` : ''}
+                ${a.descripcion ? `<br>${esc(a.descripcion)}` : ''}
+                <div class="pills">
+                  <span class="pill">${esc((a.estado || '').replace('_',' '))}</span>
+                  ${a.responsable ? `<span class="pill">${esc(a.responsable)}</span>` : ''}
+                  ${a.fecha_objetivo ? `<span class="pill">${esc(fmtDate(a.fecha_objetivo))}</span>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('') : '<div class="empty-state small">No se han registrado acciones.</div>'}
+        </div>
+      </section>
+    </section>
+  `;
+
+  $('#preventive-add-factor')?.addEventListener('click', showAddPreventiveFactor);
+  $('#preventive-add-action')?.addEventListener('click', showAddPreventiveAction);
+  $('#preventive-close')?.addEventListener('click', closePreventive);
+}
+
+function renderPreventiveFactor(f) {
+  const def = state.factors.find(x => x.codigo === f.pif_codigo);
+  const category = state.categories.find(c => c.codigo === def?.categoria_codigo);
+  const sub = state.subfactors.find(s => s.codigo === f.subfactor_codigo);
+  const actions = state.preventiveDetail.acciones.filter(a => a.factor_id === f.id).length;
+
+  return `
+    <article class="preventive-factor ${esc(f.influencia)}">
+      <div class="preventive-factor-head">
+        <div>
+          <span class="eyebrow">${esc(category?.nombre_es || 'PIF')}</span>
+          <h3>${esc(f.pif_codigo)} · ${esc(def?.nombre_es || f.pif_codigo)}</h3>
+          ${sub ? `<div class="factor-en">${esc(sub.codigo)} · ${esc(sub.nombre_es)}</div>` : ''}
+        </div>
+        <span class="preventive-status ${esc(f.influencia)}">${esc(preventiveInfluenceLabel(f.influencia))}</span>
+      </div>
+      <p>${esc(f.condicion_observable)}</p>
+      ${f.fuente_contexto ? `<small><strong>Fuente/contexto:</strong> ${esc(f.fuente_contexto)}</small>` : ''}
+      ${f.notas ? `<small><strong>Nota:</strong> ${esc(f.notas)}</small>` : ''}
+      <div class="pills"><span class="pill">${actions} acción(es) relacionada(s)</span></div>
+    </article>
+  `;
+}
+
+function showAddPreventiveFactor() {
+  openModal('Registrar condición PIF', `
+    <div class="warning">Selecciona un PIF porque existe una condición concreta en esta tarea, no para completar una lista. Describe qué observas o qué está previsto.</div>
+    <div class="form-grid" style="margin-top:12px">
+      <label class="field">
+        <span>Categoría</span>
+        <select id="preventive-factor-category">${state.categories.map(c => `<option value="${esc(c.codigo)}">${esc(c.nombre_es)}</option>`).join('')}</select>
+      </label>
+      <label class="field">
+        <span>PIF</span>
+        <select id="preventive-factor-main"></select>
+      </label>
+      <label class="field wide">
+        <span>Subfactor o ejemplo específico</span>
+        <select id="preventive-factor-sub"></select>
+      </label>
+      <label class="field">
+        <span>Influencia prevista</span>
+        <select id="preventive-factor-influence">
+          <option value="favorable">Favorable</option>
+          <option value="atencion" selected>Requiere atención</option>
+          <option value="critica">Condición crítica para revisión</option>
+        </select>
+      </label>
+      <label class="field wide">
+        <span>Condición observable o prevista</span>
+        <textarea id="preventive-factor-condition" placeholder="Ej.: El equipo dispone de solo 45 minutos para una actividad normalmente planificada para 90 minutos."></textarea>
+      </label>
+      <label class="field wide">
+        <span>Fuente o contexto</span>
+        <input id="preventive-factor-source" placeholder="Ej.: planificación, conversación previa, observación de campo, procedimiento...">
+      </label>
+      <label class="field wide">
+        <span>Notas</span>
+        <textarea id="preventive-factor-notes" placeholder="Información complementaria, si aplica."></textarea>
+      </label>
+    </div>
+    <div class="actions"><button class="btn primary" id="preventive-factor-save" type="button">Guardar condición</button></div>
+  `, 'Análisis preventivo');
+
+  const category = $('#preventive-factor-category');
+  const main = $('#preventive-factor-main');
+  const sub = $('#preventive-factor-sub');
+
+  function fillMain() {
+    const items = state.factors.filter(f => f.categoria_codigo === category.value);
+    main.innerHTML = items.map(f => `<option value="${esc(f.codigo)}">${esc(f.codigo)} · ${esc(f.nombre_es)}</option>`).join('');
+    fillSub();
+  }
+  function fillSub() {
+    const items = state.subfactors.filter(s => s.pif_codigo === main.value);
+    sub.innerHTML = '<option value="">Sin subfactor específico</option>' +
+      items.map(s => `<option value="${esc(s.codigo)}">${esc(s.codigo)} · ${esc(s.nombre_es)}</option>`).join('');
+  }
+  category.addEventListener('change', fillMain);
+  main.addEventListener('change', fillSub);
+  fillMain();
+
+  $('#preventive-factor-save').addEventListener('click', savePreventiveFactor);
+}
+
+async function savePreventiveFactor() {
+  const condition = $('#preventive-factor-condition').value.trim();
+  if (!condition) return toast('Describe la condición observable o prevista.');
+
+  const { error } = await supabase.from('pif_preventivo_factores').insert({
+    analisis_id: state.currentPreventive.id,
+    pif_codigo: $('#preventive-factor-main').value,
+    subfactor_codigo: $('#preventive-factor-sub').value || null,
+    condicion_observable: condition,
+    influencia: $('#preventive-factor-influence').value,
+    fuente_contexto: $('#preventive-factor-source').value.trim() || null,
+    notas: $('#preventive-factor-notes').value.trim() || null
+  });
+
+  if (error) {
+    console.error(error);
+    return toast(error.code === '23505' ? 'Ese PIF ya fue registrado en este análisis.' : (error.message || 'No fue posible guardar la condición.'));
+  }
+
+  if (state.currentPreventive.estado === 'borrador') {
+    await supabase.from('pif_preventivos').update({ estado: 'en_revision' }).eq('id', state.currentPreventive.id);
+    state.currentPreventive.estado = 'en_revision';
+  }
+
+  closeModal();
+  await openPreventive(state.currentPreventive.id);
+  await loadPreventives();
+  toast('Condición PIF registrada.');
+}
+
+function showAddPreventiveAction() {
+  const factors = state.preventiveDetail?.factores || [];
+  openModal('Agregar acción preventiva', `
+    <div class="form-grid">
+      <label class="field wide">
+        <span>PIF relacionado</span>
+        <select id="preventive-action-factor">
+          <option value="">Acción general del análisis</option>
+          ${factors.map(f => {
+            const def = state.factors.find(x => x.codigo === f.pif_codigo);
+            return `<option value="${f.id}">${esc(f.pif_codigo)} · ${esc(def?.nombre_es || f.pif_codigo)}</option>`;
+          }).join('')}
+        </select>
+      </label>
+      <label class="field wide">
+        <span>Acción</span>
+        <input id="preventive-action-title" placeholder="Ej.: Ajustar planificación y recursos antes del inicio">
+      </label>
+      <label class="field wide">
+        <span>Descripción</span>
+        <textarea id="preventive-action-description"></textarea>
+      </label>
+      <label class="field">
+        <span>Responsable</span>
+        <input id="preventive-action-owner">
+      </label>
+      <label class="field">
+        <span>Fecha objetivo</span>
+        <input id="preventive-action-date" type="date">
+      </label>
+    </div>
+    <div class="actions"><button class="btn primary" id="preventive-action-save" type="button">Guardar acción</button></div>
+  `, 'Acción preventiva');
+
+  $('#preventive-action-save').addEventListener('click', savePreventiveAction);
+}
+
+async function savePreventiveAction() {
+  const title = $('#preventive-action-title').value.trim();
+  if (!title) return toast('Escribe la acción a realizar.');
+
+  const { error } = await supabase.from('pif_preventivo_acciones').insert({
+    analisis_id: state.currentPreventive.id,
+    factor_id: $('#preventive-action-factor').value || null,
+    titulo: title,
+    descripcion: $('#preventive-action-description').value.trim() || null,
+    responsable: $('#preventive-action-owner').value.trim() || null,
+    fecha_objetivo: $('#preventive-action-date').value || null,
+    estado: 'pendiente'
+  });
+
+  if (error) {
+    console.error(error);
+    return toast(error.message || 'No fue posible guardar la acción.');
+  }
+
+  closeModal();
+  await openPreventive(state.currentPreventive.id);
+  toast('Acción preventiva registrada.');
+}
+
+async function closePreventive() {
+  const d = state.preventiveDetail;
+  const q = preventiveQuality();
+  if (!d.factores.length) return toast('Registra al menos una condición PIF antes de cerrar la revisión.');
+  if (q.criticalWithoutAction > 0) {
+    return toast('Hay condiciones críticas sin una acción relacionada. Registra una acción antes de cerrar.');
+  }
+
+  const warning = q.pendingActions
+    ? ` Quedarán ${q.pendingActions} acción(es) abierta(s) en el registro.`
+    : '';
+  if (!confirm('¿Cerrar esta revisión documental?' + warning + ' Esto no autoriza por sí mismo la ejecución de la tarea.')) return;
+
+  const { error } = await supabase.from('pif_preventivos').update({
+    estado: 'cerrado',
+    cerrado_at: new Date().toISOString()
+  }).eq('id', state.currentPreventive.id);
+
+  if (error) return toast(error.message || 'No fue posible cerrar la revisión.');
+
+  state.currentPreventive.estado = 'cerrado';
+  await loadPreventives();
+  await openPreventive(state.currentPreventive.id);
+  toast('Revisión preventiva cerrada.');
+}
+
+$('#new-preventive-button')?.addEventListener('click', showNewPreventive);
+$('#preventive-demo-button')?.addEventListener('click', createPreventiveDemo);
+
 async function loadAnalytics() {
   if (!state.session) return;
   $('#analytics-status').textContent = 'Calculando…';
@@ -1589,7 +2185,7 @@ async function initAuth() {
 
 async function init() {
   const target = location.hash.replace('#','');
-  if (['inicio','taxonomia','casos','analitica'].includes(target)) showView(target);
+  if (['inicio','taxonomia','casos','preventivo','analitica'].includes(target)) showView(target);
   try {
     await loadTaxonomy();
   } catch (error) {
@@ -1599,6 +2195,7 @@ async function init() {
   }
   await initAuth();
   if (state.session && target === 'casos') await loadCases();
+  if (state.session && target === 'preventivo') await loadPreventives();
   if (state.session && target === 'analitica') await loadAnalytics();
 }
 init();
