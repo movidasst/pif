@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="PIF-SST. Análisis de factores que influyen en el desempeño." />
+  <title>PIF-SST | Análisis de factores que influyen en el desempeño</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">PIF</div>
+      <div>
+        <div class="brand-title">PIF-SST</div>
+        <div class="brand-subtitle">Análisis de factores que influyen en el desempeño</div>
+      </div>
+    </div>
+    <div class="movida">La Movida de SST+</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">EI 3646 · primera edición · agosto 2026</span>
+        <h1>PIF-SST</h1>
+        <p class="lead">Herramienta para consultar y aplicar la taxonomía de factores que influyen en el desempeño en el análisis de hallazgos de investigaciones de incidentes en SST.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#taxonomia">Consultar taxonomía</a>
+          <a class="button secondary" href="#criterio">Criterio de uso</a>
+        </div>
+      </div>
+      <div class="hero-panel" aria-label="Resumen de la taxonomía">
+        <div class="metric"><strong id="count-categories">7</strong><span>categorías</span></div>
+        <div class="metric"><strong id="count-factors">38</strong><span>PIF principales</span></div>
+        <div class="metric"><strong id="count-subfactors">—</strong><span>subfactores y ejemplos</span></div>
+      </div>
+    </section>
+
+    <section class="notice" id="criterio">
+      <strong>Criterio de uso</strong>
+      <p>PIF-SST clasifica hallazgos respaldados por evidencia. No sustituye una metodología de investigación de incidentes ni debe utilizarse como una lista de chequeo para decidir causas.</p>
+    </section>
+
+    <section class="section" id="taxonomia">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Taxonomía</span>
+          <h2>Factores que influyen en el desempeño</h2>
+        </div>
+        <div class="source-status" id="source-status">Cargando datos…</div>
+      </div>
+
+      <div class="filters">
+        <label class="search">
+          <span>Buscar</span>
+          <input id="search-input" type="search" placeholder="Ej.: fatiga, supervisión, ruido, procedimiento…" autocomplete="off">
+        </label>
+        <div id="category-filters" class="category-filters" aria-label="Filtrar por categoría"></div>
+      </div>
+
+      <div id="taxonomy-grid" class="taxonomy-grid" aria-live="polite"></div>
+      <div id="empty-state" class="empty-state" hidden>No se encontraron factores con ese criterio.</div>
+    </section>
+
+    <section class="section compact">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Arquitectura de evidencias</span>
+          <h2>Archivos fuera de Supabase Storage</h2>
+        </div>
+      </div>
+      <div class="info-grid">
+        <article class="info-card">
+          <h3>Google Drive</h3>
+          <p>Los archivos de evidencia se almacenarán en la carpeta privada PIF de Google Drive, organizados por caso.</p>
+        </article>
+        <article class="info-card">
+          <h3>Supabase</h3>
+          <p>La base de datos conserva metadatos, relación con el hallazgo, identificador de Drive y enlace del archivo.</p>
+        </article>
+        <article class="info-card">
+          <h3>Privacidad</h3>
+          <p>PIF-SST no convierte automáticamente las evidencias en archivos públicos. El acceso depende de los permisos definidos en Drive.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div><strong>La Movida de SST+</strong> · De la Reacción a la Prevención</div>
+    <a href="https://www.movidasst.com" rel="noopener">www.movidasst.com</a>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
