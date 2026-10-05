@@ -36,7 +36,14 @@ const state = {
   analytics: null,
   preventives: [],
   currentPreventive: null,
-  preventiveDetail: null
+  preventiveDetail: null,
+  simulatorCases: [],
+  simulatorAttempts: [],
+  simulatorCase: null,
+  simulatorStages: [],
+  simulatorAttempt: null,
+  simulatorSelected: null,
+  simulatorFeedback: null
 };
 
 const $ = selector => document.querySelector(selector);
@@ -82,6 +89,10 @@ function showView(name) {
   if (name === 'casos') {
     if (state.session) loadCases();
     renderCasesGate();
+  }
+  if (name === 'simulador') {
+    renderSimulatorGate();
+    if (state.session) loadSimulator();
   }
   if (name === 'preventivo') {
     renderPreventiveGate();
@@ -185,6 +196,7 @@ function renderAccount() {
     button.textContent = 'Ingresar';
   }
   renderCasesGate();
+  renderSimulatorGate();
   renderPreventiveGate();
   renderAnalyticsGate();
 }
@@ -193,6 +205,15 @@ function renderCasesGate() {
   const logged = Boolean(state.session);
   $('#cases-gate').hidden = logged;
   $('#cases-area').hidden = !logged;
+}
+
+function renderSimulatorGate() {
+  const logged = Boolean(state.session);
+  const gate = $('#simulator-gate');
+  const area = $('#simulator-area');
+  if (!gate || !area) return;
+  gate.hidden = logged;
+  area.hidden = !logged;
 }
 
 function renderPreventiveGate() {
@@ -261,6 +282,7 @@ async function login() {
     closeModal();
     renderAccount();
     await loadCases();
+    if (location.hash === '#simulador') await loadSimulator();
     if (location.hash === '#preventivo') await loadPreventives();
     if (location.hash === '#analitica') await loadAnalytics();
     toast('Acceso correcto.');
@@ -285,10 +307,19 @@ async function logout() {
   state.preventives = [];
   state.currentPreventive = null;
   state.preventiveDetail = null;
+  state.simulatorCases = [];
+  state.simulatorAttempts = [];
+  state.simulatorCase = null;
+  state.simulatorStages = [];
+  state.simulatorAttempt = null;
+  state.simulatorSelected = null;
+  state.simulatorFeedback = null;
   localStorage.removeItem('pif_member');
   renderAccount();
   $('#cases-list').innerHTML = '';
   $('#case-workspace').innerHTML = '';
+  if ($('#simulator-list')) $('#simulator-list').innerHTML = '';
+  if ($('#simulator-workspace')) $('#simulator-workspace').innerHTML = '';
   if ($('#preventive-list')) $('#preventive-list').innerHTML = '';
   if ($('#preventive-workspace')) $('#preventive-workspace').innerHTML = '';
   closeModal();
@@ -306,6 +337,7 @@ $('#account-button').addEventListener('click', () => {
   $('#logout-button').addEventListener('click', logout);
 });
 $('#gate-login').addEventListener('click', showLogin);
+$('#simulator-login')?.addEventListener('click', showLogin);
 $('#preventive-login')?.addEventListener('click', showLogin);
 $('#analytics-login')?.addEventListener('click', showLogin);
 
@@ -443,14 +475,14 @@ async function createDemoCase() {
       tipo: 'aprendizaje',
       titulo: 'DEMO · Herramienta que cae desde altura',
       codigo_interno: 'DEMO-EI3646-HERRAMIENTA',
-      empresa: 'Caso de aprendizaje EI 3646',
+      empresa: 'Caso de aprendizaje PIF-SST',
       centro_trabajo: 'Escenario de práctica',
       area: 'Mantenimiento',
       actividad: 'Trabajo en altura / mantenimiento',
       tipo_evento: 'Caída de objeto',
       consecuencia: 'Caso de aprendizaje, sin consecuencia real',
       gravedad: 'Simulación',
-      descripcion: 'Caso de aprendizaje basado en el ejemplo utilizado por EI 3646 para mostrar la relación entre barrera, acción observada y factores que influyen en el desempeño. No corresponde a un accidente real.',
+      descripcion: 'Caso de aprendizaje basado en el ejemplo de aprendizaje utilizado por PIF-SST para mostrar la relación entre barrera, acción observada y factores que influyen en el desempeño. No corresponde a un accidente real.',
       estado: 'en_analisis'
     }).select('*').single();
 
@@ -1426,8 +1458,8 @@ function buildCaseReportHTML() {
       www.movidasst.com · De la Reacción a la Prevención<br>
       Informe generado: ${esc(generatedAt)}
       <div class="source">
-        <strong>Referencia técnica:</strong> Energy Institute. EI 3646. <em>Research report: A proposed human factors performance influencing factors (PIFs) taxonomy.</em> First edition, August 2026. London.<br>
-        PIF-SST utiliza esta taxonomía como estructura para clasificar y analizar hallazgos. La aplicación no sustituye una metodología de investigación de incidentes ni el juicio profesional.
+        <strong>Referencia técnica:</strong> Taxonomía PIF-SST utilizada como estructura para ordenar y analizar factores que influyen en el desempeño.<br>
+        PIF-SST organiza hallazgos, evidencias y factores para apoyar el análisis profesional. La aplicación no sustituye una metodología de investigación ni el juicio profesional.
       </div>
     </footer>
   </main>
@@ -1446,6 +1478,377 @@ function openCaseReport() {
   reportWindow.document.close();
 }
 
+
+
+async function loadSimulator() {
+  if (!state.session) return;
+
+  const [casesRes, attemptsRes] = await Promise.all([
+    supabase.from('pif_simulador_casos').select('*').eq('activo', true).order('orden'),
+    supabase.from('pif_simulador_intentos').select('*').order('iniciado_at', { ascending: false })
+  ]);
+
+  if (casesRes.error || attemptsRes.error) {
+    console.error(casesRes.error || attemptsRes.error);
+    return toast('No fue posible cargar el simulador.');
+  }
+
+  state.simulatorCases = casesRes.data || [];
+  state.simulatorAttempts = attemptsRes.data || [];
+  renderSimulatorCases();
+}
+
+function simulatorLevelLabel(value) {
+  return {
+    inicial: 'Inicial',
+    intermedio: 'Intermedio',
+    avanzado: 'Avanzado',
+    final: 'Final'
+  }[value] || value;
+}
+
+function parseSimulatorContent(value) {
+  try { return typeof value === 'string' ? JSON.parse(value) : value; }
+  catch { return null; }
+}
+
+function latestAttemptFor(caseId) {
+  return state.simulatorAttempts.find(a => a.simulador_caso_id === caseId) || null;
+}
+
+function renderSimulatorCases() {
+  const total = state.simulatorCases.length;
+  const completed = new Set(
+    state.simulatorAttempts.filter(a => a.estado === 'finalizado').map(a => a.simulador_caso_id)
+  ).size;
+  const scores = state.simulatorAttempts.filter(a => a.estado === 'finalizado' && a.puntuacion != null).map(a => Number(a.puntuacion));
+  const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+
+  $('#simulator-summary').innerHTML = `
+    <div class="sim-stat"><strong>${total}</strong><span>casos guiados</span></div>
+    <div class="sim-stat"><strong>${completed}</strong><span>casos completados</span></div>
+    <div class="sim-stat"><strong>${avg}%</strong><span>alineación promedio</span></div>
+    <div class="sim-stat"><strong>5</strong><span>etapas por caso</span></div>
+  `;
+
+  if (!state.simulatorCases.length) {
+    $('#simulator-list').innerHTML = '<div class="empty-state">No hay casos activos en este momento.</div>';
+    return;
+  }
+
+  $('#simulator-list').innerHTML = state.simulatorCases.map((c,index) => {
+    const attempt = latestAttemptFor(c.id);
+    const finished = attempt?.estado === 'finalizado';
+    const inProgress = attempt?.estado === 'en_progreso';
+    const score = finished && attempt.puntuacion != null ? Math.round(Number(attempt.puntuacion)) : null;
+    return `
+      <article class="sim-case-card">
+        <div class="sim-case-number">CASO ${String(index+1).padStart(2,'0')}</div>
+        <div class="sim-case-main">
+          <div class="sim-case-top">
+            <span class="pill teal">${esc(simulatorLevelLabel(c.nivel))}</span>
+            ${finished ? `<span class="pill green">Completado · ${score}%</span>` : inProgress ? '<span class="pill yellow">En progreso</span>' : '<span class="pill">Disponible</span>'}
+          </div>
+          <h3>${esc(c.titulo)}</h3>
+          <p>${esc(c.descripcion_inicial)}</p>
+        </div>
+        <button class="btn ${finished ? 'secondary' : 'primary'}" type="button" data-start-simulator="${c.id}">
+          ${inProgress ? 'Continuar' : finished ? 'Repetir' : 'Comenzar'}
+        </button>
+      </article>
+    `;
+  }).join('');
+
+  $('[data-start-simulator]').forEach(btn => btn.addEventListener('click', () => startSimulatorCase(btn.dataset.startSimulator)));
+}
+
+async function startSimulatorCase(caseId) {
+  const simulatorCase = state.simulatorCases.find(c => c.id === caseId);
+  if (!simulatorCase) return;
+
+  const stagesRes = await supabase.from('pif_simulador_etapas')
+    .select('*')
+    .eq('simulador_caso_id', caseId)
+    .order('numero');
+
+  if (stagesRes.error) {
+    console.error(stagesRes.error);
+    return toast('No fue posible cargar las etapas del caso.');
+  }
+
+  state.simulatorCase = simulatorCase;
+  state.simulatorStages = stagesRes.data || [];
+  state.simulatorSelected = null;
+  state.simulatorFeedback = null;
+
+  const active = state.simulatorAttempts.find(a => a.simulador_caso_id === caseId && a.estado === 'en_progreso');
+  if (active) {
+    state.simulatorAttempt = active;
+    renderSimulatorWorkspace();
+    return;
+  }
+
+  const created = await supabase.from('pif_simulador_intentos').insert({
+    simulador_caso_id: caseId,
+    estado: 'en_progreso',
+    etapa_actual: 1,
+    respuesta: {}
+  }).select('*').single();
+
+  if (created.error) {
+    console.error(created.error);
+    return toast('No fue posible iniciar el ejercicio.');
+  }
+
+  state.simulatorAttempt = created.data;
+  state.simulatorAttempts.unshift(created.data);
+  renderSimulatorWorkspace();
+}
+
+function renderSimulatorWorkspace() {
+  const c = state.simulatorCase;
+  const stages = state.simulatorStages;
+  const attempt = state.simulatorAttempt;
+  if (!c || !attempt || !stages.length) return;
+
+  if (attempt.estado === 'finalizado') {
+    renderSimulatorResult();
+    return;
+  }
+
+  const currentNumber = Math.min(Math.max(Number(attempt.etapa_actual || 1),1),stages.length);
+  const stage = stages.find(s => Number(s.numero) === currentNumber) || stages[0];
+  const content = parseSimulatorContent(stage.contenido);
+  if (!content) return toast('El contenido de esta etapa no pudo interpretarse.');
+
+  const pct = Math.round(((currentNumber - 1) / stages.length) * 100);
+  const answers = attempt.respuesta || {};
+  const answered = answers[String(currentNumber)] || null;
+  const feedback = state.simulatorFeedback || answered;
+
+  $('#simulator-workspace').innerHTML = `
+    <section class="sim-workspace">
+      <div class="sim-progress-head">
+        <div>
+          <span class="eyebrow">Caso guiado · ${esc(simulatorLevelLabel(c.nivel))}</span>
+          <h2>${esc(c.titulo)}</h2>
+        </div>
+        <div class="sim-progress-value">${currentNumber} / ${stages.length}</div>
+      </div>
+
+      <div class="sim-progress-track"><span style="width:${feedback ? Math.round((currentNumber/stages.length)*100) : pct}%"></span></div>
+
+      <div class="sim-steps">
+        ${stages.map(s => `
+          <div class="sim-step ${Number(s.numero) < currentNumber ? 'done' : Number(s.numero) === currentNumber ? 'active' : ''}">
+            <b>${s.numero}</b><span>${esc(s.tipo)}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="sim-layout">
+        <aside class="sim-case-context">
+          <span class="sim-case-tag">CASO DE PRÁCTICA</span>
+          <h3>${esc(c.titulo)}</h3>
+          <p>${esc(c.descripcion_inicial)}</p>
+          ${c.instrucciones ? `<div class="sim-tip"><strong>Consigna:</strong> ${esc(c.instrucciones)}</div>` : ''}
+        </aside>
+
+        <div class="sim-question-card">
+          <div class="sim-question-kicker">${esc(stage.titulo)}</div>
+          <h3>${esc(content.prompt)}</h3>
+          ${content.hint ? `<p class="sim-hint">Pista: ${esc(content.hint)}</p>` : ''}
+
+          <div class="sim-options">
+            ${content.options.map((opt,idx) => {
+              const selected = state.simulatorSelected === idx;
+              const saved = feedback?.selected === idx;
+              const isCorrect = feedback && idx === Number(content.correct);
+              const isWrongSelected = feedback && saved && !isCorrect;
+              const cls = [
+                selected ? 'selected' : '',
+                isCorrect ? 'correct' : '',
+                isWrongSelected ? 'wrong' : ''
+              ].filter(Boolean).join(' ');
+              return `
+                <button type="button" class="sim-option ${cls}" data-sim-option="${idx}" ${feedback ? 'disabled' : ''}>
+                  <span>${String.fromCharCode(65+idx)}</span>
+                  <b>${esc(opt)}</b>
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          ${feedback ? `
+            <div class="sim-feedback ${feedback.correct ? 'ok' : 'review'}">
+              <strong>${feedback.correct ? 'Criterio alineado' : 'Revisa el criterio'}</strong>
+              <p>${esc(content.explanation)}</p>
+            </div>
+            <div class="actions">
+              <button class="btn primary" id="sim-next" type="button">${currentNumber === stages.length ? 'Ver resultado' : 'Continuar →'}</button>
+            </div>
+          ` : `
+            <div class="actions">
+              <button class="btn primary" id="sim-check" type="button" ${state.simulatorSelected == null ? 'disabled' : ''}>Comprobar criterio</button>
+            </div>
+          `}
+        </div>
+      </div>
+    </section>
+  `;
+
+  if (!feedback) {
+    $('[data-sim-option]').forEach(btn => btn.addEventListener('click', () => {
+      state.simulatorSelected = Number(btn.dataset.simOption);
+      renderSimulatorWorkspace();
+    }));
+    $('#sim-check')?.addEventListener('click', checkSimulatorAnswer);
+  } else {
+    $('#sim-next')?.addEventListener('click', continueSimulator);
+  }
+
+  $('#simulator-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function checkSimulatorAnswer() {
+  const attempt = state.simulatorAttempt;
+  const currentNumber = Number(attempt.etapa_actual || 1);
+  const stage = state.simulatorStages.find(s => Number(s.numero) === currentNumber);
+  const content = parseSimulatorContent(stage?.contenido);
+  if (!content || state.simulatorSelected == null) return;
+
+  const correct = state.simulatorSelected === Number(content.correct);
+  const responses = { ...(attempt.respuesta || {}) };
+  responses[String(currentNumber)] = {
+    selected: state.simulatorSelected,
+    correct,
+    answered_at: new Date().toISOString()
+  };
+
+  const updated = await supabase.from('pif_simulador_intentos')
+    .update({ respuesta: responses })
+    .eq('id', attempt.id)
+    .select('*')
+    .single();
+
+  if (updated.error) {
+    console.error(updated.error);
+    return toast('No fue posible guardar tu respuesta.');
+  }
+
+  state.simulatorAttempt = updated.data;
+  state.simulatorFeedback = responses[String(currentNumber)];
+  const i = state.simulatorAttempts.findIndex(a => a.id === updated.data.id);
+  if (i >= 0) state.simulatorAttempts[i] = updated.data;
+  renderSimulatorWorkspace();
+}
+
+async function continueSimulator() {
+  const attempt = state.simulatorAttempt;
+  const currentNumber = Number(attempt.etapa_actual || 1);
+
+  if (currentNumber >= state.simulatorStages.length) {
+    const responses = attempt.respuesta || {};
+    const total = state.simulatorStages.length;
+    const correct = Object.values(responses).filter(x => x?.correct).length;
+    const score = Math.round((correct / Math.max(total,1)) * 100);
+
+    const finalRes = await supabase.from('pif_simulador_intentos')
+      .update({
+        estado: 'finalizado',
+        etapa_actual: total,
+        puntuacion: score,
+        finalizado_at: new Date().toISOString()
+      })
+      .eq('id', attempt.id)
+      .select('*')
+      .single();
+
+    if (finalRes.error) {
+      console.error(finalRes.error);
+      return toast('No fue posible cerrar el ejercicio.');
+    }
+
+    state.simulatorAttempt = finalRes.data;
+    const i = state.simulatorAttempts.findIndex(a => a.id === finalRes.data.id);
+    if (i >= 0) state.simulatorAttempts[i] = finalRes.data;
+    state.simulatorSelected = null;
+    state.simulatorFeedback = null;
+    renderSimulatorResult();
+    renderSimulatorCases();
+    return;
+  }
+
+  const next = currentNumber + 1;
+  const updated = await supabase.from('pif_simulador_intentos')
+    .update({ etapa_actual: next })
+    .eq('id', attempt.id)
+    .select('*')
+    .single();
+
+  if (updated.error) {
+    console.error(updated.error);
+    return toast('No fue posible avanzar a la siguiente etapa.');
+  }
+
+  state.simulatorAttempt = updated.data;
+  const i = state.simulatorAttempts.findIndex(a => a.id === updated.data.id);
+  if (i >= 0) state.simulatorAttempts[i] = updated.data;
+  state.simulatorSelected = null;
+  state.simulatorFeedback = null;
+  renderSimulatorWorkspace();
+}
+
+function renderSimulatorResult() {
+  const attempt = state.simulatorAttempt;
+  const c = state.simulatorCase;
+  if (!attempt || !c) return;
+
+  const responses = attempt.respuesta || {};
+  const score = Math.round(Number(attempt.puntuacion || 0));
+  const level = score >= 80 ? 'Criterio bien alineado' : score >= 60 ? 'Buen avance, conviene revisar algunos criterios' : 'Necesitas reforzar la separación entre hecho, evidencia e interpretación';
+
+  $('#simulator-workspace').innerHTML = `
+    <section class="sim-result-card">
+      <div class="sim-result-score"><strong>${score}%</strong><span>alineación con el criterio de referencia</span></div>
+      <div class="sim-result-copy">
+        <span class="eyebrow">Resultado del laboratorio</span>
+        <h2>${esc(level)}</h2>
+        <p>Completaste <strong>${esc(c.titulo)}</strong>. El resultado no representa una certificación ni una calificación profesional; sirve para practicar consistencia en la forma de documentar y clasificar.</p>
+        <div class="sim-result-grid">
+          ${state.simulatorStages.map(s => {
+            const a = responses[String(s.numero)];
+            return `<div class="${a?.correct ? 'ok' : 'review'}"><b>${s.numero}</b><span>${esc(s.tipo)}</span><strong>${a?.correct ? 'Alineado' : 'Revisar'}</strong></div>`;
+          }).join('')}
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="button" id="sim-repeat">Repetir caso</button>
+          <button class="btn secondary" type="button" id="sim-back-list">Volver a los casos</button>
+        </div>
+      </div>
+    </section>
+  `;
+
+  $('#sim-repeat')?.addEventListener('click', async () => {
+    const created = await supabase.from('pif_simulador_intentos').insert({
+      simulador_caso_id: c.id,
+      estado: 'en_progreso',
+      etapa_actual: 1,
+      respuesta: {}
+    }).select('*').single();
+    if (created.error) return toast('No fue posible iniciar un nuevo intento.');
+    state.simulatorAttempt = created.data;
+    state.simulatorAttempts.unshift(created.data);
+    state.simulatorSelected = null;
+    state.simulatorFeedback = null;
+    renderSimulatorWorkspace();
+  });
+
+  $('#sim-back-list')?.addEventListener('click', () => {
+    $('#simulator-workspace').innerHTML = '';
+    $('#simulator-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
 
 async function loadPreventives() {
   if (!state.session) return;
@@ -2189,7 +2592,7 @@ async function initAuth() {
 
 async function init() {
   const target = location.hash.replace('#','');
-  if (['inicio','taxonomia','casos','preventivo','analitica'].includes(target)) showView(target);
+  if (['inicio','taxonomia','casos','simulador','preventivo','analitica'].includes(target)) showView(target);
   try {
     await loadTaxonomy();
   } catch (error) {
@@ -2199,6 +2602,7 @@ async function init() {
   }
   await initAuth();
   if (state.session && target === 'casos') await loadCases();
+  if (state.session && target === 'simulador') await loadSimulator();
   if (state.session && target === 'preventivo') await loadPreventives();
   if (state.session && target === 'analitica') await loadAnalytics();
 }
